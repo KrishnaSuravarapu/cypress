@@ -610,7 +610,9 @@ const createRunAndRecordSpecs = (options = {}) => {
       //   })
       // }
 
-      const { runUrl, runId, machineId, groupId } = resp || {}
+      resp ||= {}
+
+      const { runUrl, runId, machineId, groupId } = resp
       const protocolCaptureMeta = resp.capture || {}
 
       let captured = null
