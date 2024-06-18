@@ -602,15 +602,13 @@ const createRunAndRecordSpecs = (options = {}) => {
     })
     .then((resp) => {
       telemetry.getSpan('record:createRun')?.end()
-      // if (!resp) {
-      //   // if a forked run, can't record and can't be parallel
-      //   // because the necessary env variables aren't present
-      //   return runAllSpecs({
-      //     parallel: false,
-      //   })
-      // }
-
-      resp ||= {}
+      if (!resp) {
+        // if a forked run, can't record and can't be parallel
+        // because the necessary env variables aren't present
+        return runAllSpecs({
+          parallel: false,
+        })
+      }
 
       const { runUrl, runId, machineId, groupId } = resp
       const protocolCaptureMeta = resp.capture || {}
@@ -678,8 +676,24 @@ const createRunAndRecordSpecs = (options = {}) => {
           })
         })
         .then((resp) => {
+          debug('[createRunAndRecordSpecs] in afterspecrun')
           debug('postInstanceResults resp %O', resp)
           const { video, screenshots } = results
+
+          if (!resp || Object.keys(resp).length === 0) {
+            resp = {
+              videoUploadUrl: 'https://grid.browserstack.com',
+              captureUploadUrl: '',
+              screenshotUploadUrls: [],
+            }
+
+            screenshots.forEach((screenshot) => {
+              screenshotUploadUrls.push({ screenshotId: screenshot.screenshotId, uploadUrl: 'https://grid.browserstack.com' })
+            })
+          }
+
+          debug('postInstanceResults resp2 is %O', resp)
+
           const { videoUploadUrl, captureUploadUrl, screenshotUploadUrls } = resp
 
           return uploadArtifacts({
@@ -700,6 +714,8 @@ const createRunAndRecordSpecs = (options = {}) => {
           .finally(() => {
             // always attempt to upload stdout
             // even if uploading failed
+            debug(`[createRunAndRecordSpecs] in finally of afterSpecRun`)
+
             return updateInstanceStdout({
               captured,
               instanceId,

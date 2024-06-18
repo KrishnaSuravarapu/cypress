@@ -233,6 +233,10 @@ const isRetriableError = (err) => {
     return false
   }
 
+  if (err.statusCode === 401 && err.message.includes('Invalid record key')) {
+    return true
+  }
+
   return err instanceof Bluebird.TimeoutError ||
     (err.statusCode >= 500 && err.statusCode < 600) ||
     (err.statusCode == null)
@@ -376,6 +380,10 @@ export default {
             'testingType',
           ]),
           runnerCapabilities,
+        }
+
+        if (attemptIndex > 0) {
+          delete body['recordKey']
         }
 
         return rp.post({
@@ -534,9 +542,9 @@ export default {
   postInstanceResults (options) {
     return retryWithBackoff((attemptIndex) => {
       return rp.post({
-        url: recordRoutes.instanceResults(options.instanceId),
+        url: `http://localhost:8000/cypress/instance/${options.instanceId}/results`,
         json: true,
-        encrypt: preflightResult.encrypt,
+        encrypt: false,
         timeout: options.timeout ?? SIXTY_SECONDS,
         headers: {
           'x-route-version': '1',
