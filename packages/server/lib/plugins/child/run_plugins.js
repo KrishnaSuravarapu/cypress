@@ -5,7 +5,7 @@
 const debugLib = require('debug')
 const Promise = require('bluebird')
 const _ = require('lodash')
-const logger = require('../logger.js')
+const logger = require('../../logger.js')
 
 const debug = debugLib(`cypress:lifecycle:child:RunPlugins:${process.pid}`)
 

@@ -1,7 +1,7 @@
 const _ = require('lodash')
 const EE = require('events')
 const Promise = require('bluebird')
-const logger = require('./logger.js')
+const logger = require('../logger.js')
 
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
