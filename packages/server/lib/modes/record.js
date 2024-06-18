@@ -602,13 +602,13 @@ const createRunAndRecordSpecs = (options = {}) => {
     })
     .then((resp) => {
       telemetry.getSpan('record:createRun')?.end()
-      if (!resp) {
-        // if a forked run, can't record and can't be parallel
-        // because the necessary env variables aren't present
-        return runAllSpecs({
-          parallel: false,
-        })
-      }
+      // if (!resp) {
+      //   // if a forked run, can't record and can't be parallel
+      //   // because the necessary env variables aren't present
+      //   return runAllSpecs({
+      //     parallel: false,
+      //   })
+      // }
 
       const { runUrl, runId, machineId, groupId } = resp
       const protocolCaptureMeta = resp.capture || {}
