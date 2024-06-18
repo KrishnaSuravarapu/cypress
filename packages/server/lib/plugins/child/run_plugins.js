@@ -131,6 +131,15 @@ class RunPlugins {
         debug('register default preprocessor')
         registerChildEvent('file:preprocessor', this._getDefaultPreprocessor(initialConfig))
       }
+
+      const turboscaleEventNames = ['before:run', 'before:spec', 'after:run', 'after:spec', 'after:screenshot']
+
+      turboscaleEventNames.forEach((eventName) => {
+        if (!this.registeredEventsByName[eventName]) {
+          logger.info(`register default event for ${eventName}`)
+          registerChildEvent(eventName, this._getDefaultPreprocessor(initialConfig))
+        }
+      })
     })
     .then((modifiedCfg) => {
       debug('plugins file successfully loaded')
@@ -155,6 +164,7 @@ class RunPlugins {
 
   execute (event, ids, args = []) {
     debug(`execute plugin event: ${event} (%o)`, ids)
+    logger.info(`execute plugin event: ${event} (%o)`, ids)
 
     switch (event) {
       case 'dev-server:start':
