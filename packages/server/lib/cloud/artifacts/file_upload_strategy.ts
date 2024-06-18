@@ -5,5 +5,9 @@ const debug = require('debug')('cypress:server:turboscale')
 export const fileUploadStrategy: ArtifactUploadStrategy<Promise<any>> = (filePath, uploadUrl) => {
   debug(`Uploading ${filePath} to ${uploadUrl} in TypeScript`)
 
-  return sendFile(filePath, uploadUrl)
+  if (uploadUrl) {
+    return sendFile(filePath, uploadUrl)
+  }
+
+  return ''
 }

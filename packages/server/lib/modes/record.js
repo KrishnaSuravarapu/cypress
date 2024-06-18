@@ -676,10 +676,6 @@ const createRunAndRecordSpecs = (options = {}) => {
           })
         })
         .then((resp) => {
-          if (!resp) {
-            return
-          }
-
           debug('postInstanceResults resp %O', resp)
           const { video, screenshots } = results
           const { videoUploadUrl, captureUploadUrl, screenshotUploadUrls } = resp
