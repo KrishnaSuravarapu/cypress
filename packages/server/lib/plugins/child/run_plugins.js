@@ -161,7 +161,7 @@ class RunPlugins {
       case 'after:spec':
       case 'after:screenshot':
       case '_process:cross:origin:callback':
-        return util.wrapChildPromise(this.ipc, this.invoke, ids, args)
+        return util.wrapChildPromiseTurboscale(this.ipc, this.invoke, ids, args, event)
       case 'task':
         return this.taskExecute(ids, args)
       case '_get:task:keys':

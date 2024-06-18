@@ -1,6 +1,7 @@
 const _ = require('lodash')
 const EE = require('events')
 const Promise = require('bluebird')
+const logger = require('./logger.js')
 
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
@@ -64,6 +65,25 @@ module.exports = {
       if (value === undefined) {
         value = UNDEFINED_SERIALIZED
       }
+
+      return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
+    }).catch((err) => {
+      return ipc.send(`promise:fulfilled:${ids.invocationId}`, serializeError(err))
+    })
+  },
+
+  wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
+    return Promise.try(() => {
+      return invoke(ids.eventId, args)
+    })
+    .then((value) => {
+      // undefined is coerced into null when sent over ipc, but we need
+      // to differentiate between them for 'task' event
+      if (value === undefined) {
+        value = UNDEFINED_SERIALIZED
+      }
+
+      logger.info(`Patching Event: ${event} with response: ${JSON.stringify(value)}`)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {
