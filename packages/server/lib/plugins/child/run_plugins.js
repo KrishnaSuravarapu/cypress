@@ -137,7 +137,9 @@ class RunPlugins {
       turboscaleEventNames.forEach((eventName) => {
         if (!this.registeredEventsByName[eventName]) {
           logger.info(`register default event for ${eventName}`)
-          registerChildEvent(eventName, this._getDefaultPreprocessor(initialConfig))
+          registerChildEvent(eventName, (...args) => {
+            return args
+          })
         }
       })
     })
