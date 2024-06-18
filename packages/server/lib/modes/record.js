@@ -362,7 +362,7 @@ const createRun = Promise.method((options = {}) => {
           recordKey = 'undefined'
         }
 
-        return errors.warning('CLOUD_RECORD_KEY_NOT_VALID', recordKey, projectId)
+        return errors.warning('CLOUD_RECORD_KEY_NOT_VALID', { recordKey, projectId })
       case 402: {
         const { code, payload } = err.error
 

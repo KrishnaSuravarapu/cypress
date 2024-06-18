@@ -131,8 +131,7 @@
     "url-parse": "1.5.10",
     "uuid": "8.3.2",
     "webpack-virtual-modules": "0.5.0",
-    "widest-line": "3.1.0",
-    "winston": "3.13.0"
+    "widest-line": "3.1.0"
   },
   "devDependencies": {
     "@babel/core": "7.24.7",

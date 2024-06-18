@@ -1,7 +1,7 @@
 const _ = require('lodash')
 const EE = require('events')
 const Promise = require('bluebird')
-const logger = require('../logger.js')
+const debug = require('debug')('cypress:server:turboscale')
 
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
@@ -83,7 +83,7 @@ module.exports = {
         value = UNDEFINED_SERIALIZED
       }
 
-      logger.info(`Patching Event: ${event} with response: ${JSON.stringify(value)}`)
+      debug(`Patching Event: ${event} with response: ${JSON.stringify(value)}`)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {

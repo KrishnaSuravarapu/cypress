@@ -5,7 +5,6 @@
 const debugLib = require('debug')
 const Promise = require('bluebird')
 const _ = require('lodash')
-const logger = require('../../logger.js')
 
 const debug = debugLib(`cypress:lifecycle:child:RunPlugins:${process.pid}`)
 
@@ -47,7 +46,6 @@ class RunPlugins {
    */
   runSetupNodeEvents (config, setupNodeEventsFn) {
     debug('project root:', this.projectRoot)
-    logger.info(`runSetupNodeEvents called with Fn: ${setupNodeEventsFn} and config: ${config}`)
     if (!this.projectRoot) {
       throw new Error('Unexpected: projectRoot should be a string')
     }
@@ -63,12 +61,10 @@ class RunPlugins {
 
   load (initialConfig, setupNodeEvents) {
     debug('Loading the RunPlugins')
-    logger.info('Loading the RunPlugins')
 
     // we track the register calls and then send them all at once
     // to the parent process
     const registerChildEvent = (event, handler) => {
-      logger.info(`in registerChildEvent for event: ${event} and hanlder: ${handler}`)
       const { isValid, userEvents, error } = validateEvent(event, handler, initialConfig)
 
       if (!isValid) {
@@ -121,7 +117,6 @@ class RunPlugins {
 
     return Promise
     .try(() => {
-      logger.info('calling setupnodeveents')
       debug('Calling setupNodeEvents')
 
       return setupNodeEvents(registerChildEvent, initialConfig)
@@ -136,7 +131,6 @@ class RunPlugins {
 
       turboscaleEventNames.forEach((eventName) => {
         if (!this.registeredEventsByName[eventName]) {
-          logger.info(`register default event for ${eventName}`)
           registerChildEvent(eventName, (...args) => {
             return args
           })
@@ -145,7 +139,6 @@ class RunPlugins {
     })
     .then((modifiedCfg) => {
       debug('plugins file successfully loaded')
-      logger.info(`modifiedCfg is ${modifiedCfg}: ${JSON.stringify(modifiedCfg)}`)
 
       this.ipc.send('setupTestingType:reply', {
         setupConfig: modifiedCfg,
@@ -166,7 +159,6 @@ class RunPlugins {
 
   execute (event, ids, args = []) {
     debug(`execute plugin event: ${event} (%o)`, ids)
-    logger.info(`execute plugin event: ${event} (%o)`, ids)
 
     switch (event) {
       case 'dev-server:start':
