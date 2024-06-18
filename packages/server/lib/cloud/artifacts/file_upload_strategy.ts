@@ -5,9 +5,11 @@ const debug = require('debug')('cypress:server:turboscale')
 export const fileUploadStrategy: ArtifactUploadStrategy<Promise<any>> = (filePath, uploadUrl) => {
   debug(`Uploading ${filePath} to ${uploadUrl} in TypeScript`)
 
-  if (uploadUrl) {
+  if (uploadUrl !== 'https://grid.browserstack.com') {
     return sendFile(filePath, uploadUrl)
   }
+
+  debug('currently not uploading as this is turboscale')
 
   return ''
 }

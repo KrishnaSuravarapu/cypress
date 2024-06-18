@@ -542,9 +542,9 @@ export default {
   postInstanceResults (options) {
     return retryWithBackoff((attemptIndex) => {
       return rp.post({
-        url: `http://localhost:8000/cypress/instance/${options.instanceId}/results`,
+        url: recordRoutes.instanceResults(options.instanceId),
         json: true,
-        encrypt: false,
+        encrypt: preflightResult.encrypt,
         timeout: options.timeout ?? SIXTY_SECONDS,
         headers: {
           'x-route-version': '1',

@@ -159,7 +159,7 @@ const updateInstanceStdout = async (options = {}) => {
 }
 
 const postInstanceResults = (options = {}) => {
-  const { runId, instanceId, results, group, parallel, ciBuildId, metadata } = options
+  const { runId, instanceId, results, metadata } = options
   let { stats, tests, video, screenshots, reporterStats, error } = results
 
   video = Boolean(video)
@@ -192,7 +192,7 @@ const postInstanceResults = (options = {}) => {
       stack: err.stack,
     })
 
-    throwCloudCannotProceed({ parallel, ciBuildId, group, err })
+    // throwCloudCannotProceed({ parallel, ciBuildId, group, err })
   })
 }
 
@@ -680,7 +680,7 @@ const createRunAndRecordSpecs = (options = {}) => {
           debug('postInstanceResults resp %O', resp)
           const { video, screenshots } = results
 
-          if (!resp || Object.keys(resp).length === 0) {
+          if (!resp) {
             resp = {
               videoUploadUrl: 'https://grid.browserstack.com',
               captureUploadUrl: '',
