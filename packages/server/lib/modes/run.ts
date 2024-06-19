@@ -755,7 +755,9 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
   let isFirstSpecInBrowser = true
 
   async function runEachSpec (spec: SpecWithRelativeRoot, index: number, length: number, estimated: number, instanceId: string) {
+    debug(`Running spec: ${spec}`)
     capture.restore()
+    debug(`Started Capture for spec spec: ${spec}`)
     let captured = capture.stdout()
     const span = telemetry.startSpan({
       name: 'run:spec',
@@ -789,6 +791,7 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
     span?.end()
 
     results.stdout = captured
+    debug(`captured data is ${captured}`)
 
     return results
   }
