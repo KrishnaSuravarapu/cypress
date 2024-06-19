@@ -1090,35 +1090,28 @@ async function ready (options: ReadyOptions) {
     return results
   }
 
-  if (record) {
-    const { projectName } = config
+  const { projectName } = config
 
-    return recordMode.createRunAndRecordSpecs({
-      autoCancelAfterFailures,
-      tag,
-      key,
-      sys,
-      specs,
-      group,
-      config,
-      browser,
-      parallel,
-      ciBuildId,
-      testingType,
-      project,
-      projectId,
-      projectRoot,
-      projectName,
-      specPattern,
-      runAllSpecs,
-      onError,
-      quiet: options.quiet,
-    })
-  }
-
-  // not recording, can't be parallel
-  return runAllSpecs({
-    parallel: false,
+  return recordMode.createRunAndRecordSpecs({
+    autoCancelAfterFailures,
+    tag,
+    key,
+    sys,
+    specs,
+    group,
+    config,
+    browser,
+    parallel,
+    ciBuildId,
+    testingType,
+    project,
+    projectId,
+    projectRoot,
+    projectName,
+    specPattern,
+    runAllSpecs,
+    onError,
+    quiet: options.quiet,
   })
 }
 

@@ -233,10 +233,6 @@ const isRetriableError = (err) => {
     return false
   }
 
-  if (err.statusCode === 401 && err.message.includes('Invalid record key')) {
-    return true
-  }
-
   return err instanceof Bluebird.TimeoutError ||
     (err.statusCode >= 500 && err.statusCode < 600) ||
     (err.statusCode == null)
@@ -380,10 +376,6 @@ export default {
             'testingType',
           ]),
           runnerCapabilities,
-        }
-
-        if (attemptIndex > 0) {
-          delete body['recordKey']
         }
 
         return rp.post({
