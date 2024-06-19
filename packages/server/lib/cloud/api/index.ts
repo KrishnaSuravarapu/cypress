@@ -308,7 +308,7 @@ type UpdateInstanceArtifactsOptions = {
 }
 
 let preflightResult = {
-  encrypt: true,
+  encrypt: false,
 }
 
 let recordRoutes = apiRoutes
@@ -352,94 +352,13 @@ export default {
   },
 
   createRun (options: CreateRunOptions) {
-    const preflightOptions = _.pick(options, ['projectId', 'projectRoot', 'ciBuildId', 'browser', 'testingType', 'parallel', 'timeout'])
-
-    return this.sendPreflight(preflightOptions)
-    .then((result) => {
-      const { warnings } = result
-
-      return retryWithBackoff((attemptIndex) => {
-        const body = {
-          ..._.pick(options, [
-            'autoCancelAfterFailures',
-            'ci',
-            'specs',
-            'commit',
-            'group',
-            'platform',
-            'parallel',
-            'ciBuildId',
-            'projectId',
-            'recordKey',
-            'specPattern',
-            'tags',
-            'testingType',
-          ]),
-          runnerCapabilities,
-        }
-
-        return rp.post({
-          body,
-          url: recordRoutes.runs(),
-          json: true,
-          encrypt: preflightResult.encrypt,
-          timeout: options.timeout ?? SIXTY_SECONDS,
-          headers: {
-            'x-route-version': '4',
-            'x-cypress-request-attempt': attemptIndex,
-          },
-        })
-        .tap((result) => {
-          // Tack on any preflight warnings prior to run warnings
-          if (warnings) {
-            result.warnings = warnings.concat(result.warnings ?? [])
-          }
-        })
-      })
-    })
-    .then(async (result: CreateRunResponse) => {
-      const protocolManager = new ProtocolManager()
-
-      const captureProtocolUrl = result.capture?.url || result.captureProtocolUrl
-
-      options.project.protocolManager = protocolManager
-
-      debugProtocol({ captureProtocolUrl })
-
-      let script
-
-      try {
-        const protocolUrl = captureProtocolUrl || process.env.CYPRESS_LOCAL_PROTOCOL_PATH
-
-        if (protocolUrl) {
-          script = await this.getCaptureProtocolScript(protocolUrl)
-        }
-      } catch (e) {
-        debugProtocol('Error downloading capture code', e)
-        const error = new Error(`Error downloading capture code: ${e.message}`)
-
-        if (CAPTURE_ERRORS) {
-          protocolManager.addFatalError('getCaptureProtocolScript', error, [result.captureProtocolUrl])
-        } else {
-          throw e
-        }
-      }
-
-      if (script) {
-        const { testingType } = options
-        const { runId } = result
-
-        await options.project.protocolManager.setupProtocol(script, {
-          runId,
-          testingType,
-          mountVersion: runnerCapabilities.protocolMountVersion,
-        })
-      }
-
-      return result
-    })
-    .catch(RequestErrors.StatusCodeError, formatResponseBody)
-    .catch(tagError)
+    return {
+      runUrl: '',
+      runId: '',
+      machineId: '',
+      groupId: '',
+      capture: {},
+    }
   },
 
   createInstance (options) {
