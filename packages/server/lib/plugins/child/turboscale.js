@@ -51,7 +51,7 @@ module.exports = {
         value = UNDEFINED_SERIALIZED
       }
 
-      await handleHook(value)
+      await handleHook(event, value)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {
