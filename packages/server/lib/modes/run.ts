@@ -62,6 +62,7 @@ const iterateThroughSpecs = function (options: { specs: SpecFile[], runEachSpec:
   const ranSpecs: SpecFile[] = []
 
   async function parallelAndSerialWithRecord (runs) {
+    debug(`in parallelAndSerialWithRecord`)
     const { spec, claimedInstances, totalInstances, estimated, instanceId } = await beforeSpecRun()
 
     // no more specs to run? then we're done!
@@ -1053,6 +1054,7 @@ async function ready (options: ReadyOptions) {
   }
 
   async function runAllSpecs ({ beforeSpecRun, afterSpecRun, runUrl, parallel }: { beforeSpecRun?: BeforeSpecRun, afterSpecRun?: AfterSpecRun, runUrl?: string, parallel?: boolean }) {
+    debug(`[runAllSpecs]: specs is ${specs}`)
     const results = await runSpecs({
       autoCancelAfterFailures,
       beforeSpecRun,
@@ -1090,28 +1092,35 @@ async function ready (options: ReadyOptions) {
     return results
   }
 
-  const { projectName } = config
+  if (record) {
+    const { projectName } = config
 
-  return recordMode.createRunAndRecordSpecs({
-    autoCancelAfterFailures,
-    tag,
-    key,
-    sys,
-    specs,
-    group,
-    config,
-    browser,
-    parallel,
-    ciBuildId,
-    testingType,
-    project,
-    projectId,
-    projectRoot,
-    projectName,
-    specPattern,
-    runAllSpecs,
-    onError,
-    quiet: options.quiet,
+    return recordMode.createRunAndRecordSpecs({
+      autoCancelAfterFailures,
+      tag,
+      key,
+      sys,
+      specs,
+      group,
+      config,
+      browser,
+      parallel,
+      ciBuildId,
+      testingType,
+      project,
+      projectId,
+      projectRoot,
+      projectName,
+      specPattern,
+      runAllSpecs,
+      onError,
+      quiet: options.quiet,
+    })
+  }
+
+  // not recording, can't be parallel
+  return runAllSpecs({
+    parallel: false,
   })
 }
 

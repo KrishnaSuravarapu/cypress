@@ -639,6 +639,8 @@ const createRunAndRecordSpecs = (options = {}) => {
         })
       }
 
+      debug(`[createRun] response is ${JSON.stringify(resp)}`)
+
       const { runUrl, runId, machineId, groupId } = resp
       const protocolCaptureMeta = resp.capture || {}
 
@@ -646,6 +648,7 @@ const createRunAndRecordSpecs = (options = {}) => {
       let instanceId = null
 
       const beforeSpecRun = (spec) => {
+        debug(`before spec run for spec: ${spec}`)
         telemetry.startSpan({ name: 'record:beforeSpecRun' })
         project.setOnTestsReceived(onTestsReceived)
         capture.restore()
@@ -757,6 +760,8 @@ const createRunAndRecordSpecs = (options = {}) => {
           return cb()
         }
 
+        debug(`onTestsReceived called with runnables: ${runnables} and cb: ${cb}`)
+
         // runnables will be null when there' no tests
         // this also means runtimeConfig will be missing
         runnables = runnables || {}
@@ -814,10 +819,13 @@ const createRunAndRecordSpecs = (options = {}) => {
           group,
         })
         .catch((err) => {
+          debug(`[onTestsReceived] response failed: Error: ${err.getMessage()}`)
           onError(err)
 
           return responseDidFail
         })
+
+        debug(`[onTestsReceived] response is : ${resp}`)
 
         if (response === responseDidFail) {
           debug('`responseDidFail` equals `response`, allowing browser to hang until it is killed: Response %o', { responseDidFail })
