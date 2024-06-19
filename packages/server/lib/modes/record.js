@@ -511,7 +511,7 @@ const createRun = Promise.method((options = {}) => {
 })
 
 const createInstance = (options = {}) => {
-  let { runId, group, groupId, machineId, ciBuildId, platform, spec } = options
+  let { runId, group, groupId, machineId, platform, spec } = options
 
   spec = getSpecRelativePath(spec)
 
@@ -536,7 +536,7 @@ const createInstance = (options = {}) => {
 
     return {
       spec,
-      instanceId: `${ciBuildId}-${spec}`,
+      instanceId: `${group}-${spec}`,
       unallocatedInstances: 0,
       allocatedInstances: 1,
     }

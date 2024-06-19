@@ -75,7 +75,6 @@ const rp = request.defaults((params: CypressRequestOptions, callback) => {
     gzip: true,
     cacheable: false,
     encrypt: false,
-    rejectUnauthorized: true,
   })
 
   const headers = params.headers ??= {}
@@ -354,11 +353,15 @@ export default {
   createRun (options: CreateRunOptions) {
     return retryWithBackoff(() => {
       return {
-        runUrl: '',
-        runId: '',
-        machineId: '',
-        groupId: '',
-        capture: {},
+        groupId: options.group,
+        machineId: options.group,
+        runId: options.ciBuildId,
+        specs: options.specs,
+        runUrl: `https://grid.browserstack.com/dashboard/${options.ciBuildId}/${options.group}`,
+        error: false,
+        message: 'OK',
+        status: 200,
+        warnings: [],
       }
     })
   },
