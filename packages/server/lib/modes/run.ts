@@ -1054,7 +1054,7 @@ async function ready (options: ReadyOptions) {
   }
 
   async function runAllSpecs ({ beforeSpecRun, afterSpecRun, runUrl, parallel }: { beforeSpecRun?: BeforeSpecRun, afterSpecRun?: AfterSpecRun, runUrl?: string, parallel?: boolean }) {
-    debug(`[runAllSpecs]: specs is ${specs}`)
+    debug(`[runAllSpecs]: specs is ${JSON.stringify(specs)}`)
     const results = await runSpecs({
       autoCancelAfterFailures,
       beforeSpecRun,

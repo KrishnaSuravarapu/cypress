@@ -382,11 +382,47 @@ export default {
           'x-cypress-request-attempt': attemptIndex,
         },
       })
-      .tap((result) => {
-        debug(`Preflight returning: ${JSON.stringify(result)}`)
+    })
+    .then(async (result: CreateRunResponse) => {
+      const protocolManager = new ProtocolManager()
 
-        return result
-      })
+      const captureProtocolUrl = result.capture?.url || result.captureProtocolUrl
+
+      options.project.protocolManager = protocolManager
+
+      debugProtocol({ captureProtocolUrl })
+
+      let script
+
+      try {
+        const protocolUrl = captureProtocolUrl || process.env.CYPRESS_LOCAL_PROTOCOL_PATH
+
+        if (protocolUrl) {
+          script = await this.getCaptureProtocolScript(protocolUrl)
+        }
+      } catch (e) {
+        debugProtocol('Error downloading capture code', e)
+        const error = new Error(`Error downloading capture code: ${e.message}`)
+
+        if (CAPTURE_ERRORS) {
+          protocolManager.addFatalError('getCaptureProtocolScript', error, [result.captureProtocolUrl])
+        } else {
+          throw e
+        }
+      }
+
+      if (script) {
+        const { testingType } = options
+        const { runId } = result
+
+        await options.project.protocolManager.setupProtocol(script, {
+          runId,
+          testingType,
+          mountVersion: runnerCapabilities.protocolMountVersion,
+        })
+      }
+
+      return result
     })
   },
 
