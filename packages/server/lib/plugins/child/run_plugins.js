@@ -13,6 +13,7 @@ const devServer = require('./dev-server')
 const resolve = require('../../util/resolve')
 const browserLaunch = require('./browser_launch')
 const util = require('../util')
+const turboscale = require('./turboscale')
 const validateEvent = require('./validate_event')
 const crossOrigin = require('./cross_origin')
 
@@ -171,7 +172,7 @@ class RunPlugins {
       case 'after:spec':
       case 'after:screenshot':
       case '_process:cross:origin:callback':
-        return util.wrapChildPromiseTurboscale(this.ipc, this.invoke, ids, args, event)
+        return turboscale.wrapChildPromiseTurboscale(this.ipc, this.invoke, ids, args, event)
       case 'task':
         return this.taskExecute(ids, args)
       case '_get:task:keys':

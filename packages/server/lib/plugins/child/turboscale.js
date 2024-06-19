@@ -1,6 +1,6 @@
 const _ = require('lodash')
-const EE = require('events')
-const Promise = require('bluebird')
+
+const debug = require('debug')('cypress:server:turboscale')
 
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
@@ -20,41 +20,7 @@ const serializeError = (err) => {
 }
 
 module.exports = {
-  serializeError,
-
-  nonNodeRequires () {
-    return Object.keys(require.cache).filter((c) => !c.includes('/node_modules/'))
-  },
-
-  wrapIpc (aProcess) {
-    const emitter = new EE()
-
-    aProcess.on('message', (message) => {
-      return emitter.emit(message.event, ...message.args)
-    })
-
-    // prevent max listeners warning on ipc
-    // @see https://github.com/cypress-io/cypress/issues/1305#issuecomment-780895569
-    emitter.setMaxListeners(Infinity)
-
-    return {
-      send (event, ...args) {
-        if (aProcess.killed || !aProcess.connected) {
-          return
-        }
-
-        return aProcess.send({
-          event,
-          args,
-        })
-      },
-
-      on: emitter.on.bind(emitter),
-      removeListener: emitter.removeListener.bind(emitter),
-    }
-  },
-
-  wrapChildPromise (ipc, invoke, ids, args = []) {
+  wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
     return Promise.try(() => {
       return invoke(ids.eventId, args)
     })
@@ -64,6 +30,8 @@ module.exports = {
       if (value === undefined) {
         value = UNDEFINED_SERIALIZED
       }
+
+      debug(`Patching Event: ${event} with response: ${JSON.stringify(value)}`)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {
