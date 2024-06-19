@@ -42,6 +42,8 @@ const handleHook = async (hook, result) => {
 module.exports = {
   wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
     return Promise.try(() => {
+      debug(`args is ${JSON.stringify(args)}`)
+
       return invoke(ids.eventId, args)
     })
     .then(async (value) => {
@@ -51,7 +53,7 @@ module.exports = {
         value = UNDEFINED_SERIALIZED
       }
 
-      await handleHook(event, value)
+      await handleHook(event, args)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {
