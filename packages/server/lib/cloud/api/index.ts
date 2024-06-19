@@ -75,6 +75,7 @@ const rp = request.defaults((params: CypressRequestOptions, callback) => {
     gzip: true,
     cacheable: false,
     encrypt: false,
+    rejectUnauthorized: true,
   })
 
   const headers = params.headers ??= {}
@@ -307,7 +308,7 @@ type UpdateInstanceArtifactsOptions = {
 }
 
 let preflightResult = {
-  encrypt: false,
+  encrypt: true,
 }
 
 let recordRoutes = apiRoutes
@@ -351,36 +352,49 @@ export default {
   },
 
   createRun (options: CreateRunOptions) {
-    return retryWithBackoff((attemptIndex) => {
-      const body = {
-        ..._.pick(options, [
-          'autoCancelAfterFailures',
-          'ci',
-          'specs',
-          'commit',
-          'group',
-          'platform',
-          'parallel',
-          'ciBuildId',
-          'projectId',
-          'recordKey',
-          'specPattern',
-          'tags',
-          'testingType',
-        ]),
-        runnerCapabilities,
-      }
+    const preflightOptions = _.pick(options, ['projectId', 'projectRoot', 'ciBuildId', 'browser', 'testingType', 'parallel', 'timeout'])
 
-      return rp.post({
-        body,
-        url: 'http://localhost:8000/cypress/runs',
-        json: true,
-        encrypt: preflightResult.encrypt,
-        timeout: options.timeout ?? SIXTY_SECONDS,
-        headers: {
-          'x-route-version': '4',
-          'x-cypress-request-attempt': attemptIndex,
-        },
+    return this.sendPreflight(preflightOptions)
+    .then((result) => {
+      const { warnings } = result
+
+      return retryWithBackoff((attemptIndex) => {
+        const body = {
+          ..._.pick(options, [
+            'autoCancelAfterFailures',
+            'ci',
+            'specs',
+            'commit',
+            'group',
+            'platform',
+            'parallel',
+            'ciBuildId',
+            'projectId',
+            'recordKey',
+            'specPattern',
+            'tags',
+            'testingType',
+          ]),
+          runnerCapabilities,
+        }
+
+        return rp.post({
+          body,
+          url: recordRoutes.runs(),
+          json: true,
+          encrypt: preflightResult.encrypt,
+          timeout: options.timeout ?? SIXTY_SECONDS,
+          headers: {
+            'x-route-version': '4',
+            'x-cypress-request-attempt': attemptIndex,
+          },
+        })
+        .tap((result) => {
+          // Tack on any preflight warnings prior to run warnings
+          if (warnings) {
+            result.warnings = warnings.concat(result.warnings ?? [])
+          }
+        })
       })
     })
     .then(async (result: CreateRunResponse) => {
@@ -424,6 +438,8 @@ export default {
 
       return result
     })
+    .catch(RequestErrors.StatusCodeError, formatResponseBody)
+    .catch(tagError)
   },
 
   createInstance (options) {
