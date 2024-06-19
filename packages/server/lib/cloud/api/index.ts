@@ -352,13 +352,15 @@ export default {
   },
 
   createRun (options: CreateRunOptions) {
-    return {
-      runUrl: '',
-      runId: '',
-      machineId: '',
-      groupId: '',
-      capture: {},
-    }
+    return retryWithBackoff(() => {
+      return {
+        runUrl: '',
+        runId: '',
+        machineId: '',
+        groupId: '',
+        capture: {},
+      }
+    })
   },
 
   createInstance (options) {

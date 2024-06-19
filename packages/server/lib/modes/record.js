@@ -260,7 +260,7 @@ const createRun = Promise.method((options = {}) => {
     }
 
     // else throw
-    errors.throwErr('RECORD_KEY_MISSING')
+    // errors.throwErr('RECORD_KEY_MISSING')
   }
 
   // go back to being a string
