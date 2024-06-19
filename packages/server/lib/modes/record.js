@@ -655,10 +655,6 @@ const createRunAndRecordSpecs = (options = {}) => {
 
         captured = capture.stdout()
 
-        if (!runUrl || !runId) {
-          return
-        }
-
         return createInstance({
           spec,
           runId,

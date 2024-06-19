@@ -351,18 +351,42 @@ export default {
   },
 
   createRun (options: CreateRunOptions) {
-    return retryWithBackoff(() => {
-      return {
-        groupId: options.group,
-        machineId: options.group,
-        runId: options.ciBuildId,
-        specs: options.specs,
-        runUrl: `https://grid.browserstack.com/dashboard/${options.ciBuildId}/${options.group}`,
-        error: false,
-        message: 'OK',
-        status: 200,
-        warnings: [],
+    return retryWithBackoff((attemptIndex) => {
+      const body = {
+        ..._.pick(options, [
+          'autoCancelAfterFailures',
+          'ci',
+          'specs',
+          'commit',
+          'group',
+          'platform',
+          'parallel',
+          'ciBuildId',
+          'projectId',
+          'recordKey',
+          'specPattern',
+          'tags',
+          'testingType',
+        ]),
+        runnerCapabilities,
       }
+
+      return rp.post({
+        body,
+        url: 'http://localhost:8000/cypress/runs',
+        json: true,
+        encrypt: preflightResult.encrypt,
+        timeout: options.timeout ?? SIXTY_SECONDS,
+        headers: {
+          'x-route-version': '4',
+          'x-cypress-request-attempt': attemptIndex,
+        },
+      })
+      .tap((result) => {
+        debug(`Preflight returning: ${JSON.stringify(result)}`)
+
+        return result
+      })
     })
   },
 
