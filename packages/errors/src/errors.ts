@@ -631,15 +631,15 @@ export const AllCypressErrors = {
 
         ${fmt.highlightSecondary(apiErr)}`
   },
-  CLOUD_RECORD_KEY_NOT_VALID: (arg1: {recordKey: string, projectId: string}) => {
+  CLOUD_RECORD_KEY_NOT_VALID: (recordKey: string, projectId: string) => {
     return errTemplate`\
-        Your Record Key ${fmt.highlight(arg1.recordKey)} is not valid with this projectId: ${fmt.highlightSecondary(arg1.projectId)}
+        Your Record Key ${fmt.highlight(recordKey)} is not valid with this projectId: ${fmt.highlightSecondary(projectId)}
 
         It may have been recently revoked by you or another user.
 
         Please log into Cypress Cloud to see the valid Record Keys.
 
-        https://on.cypress.io/dashboard/projects/${fmt.off(arg1.projectId)}`
+        https://on.cypress.io/dashboard/projects/${fmt.off(projectId)}`
   },
   CLOUD_PROJECT_NOT_FOUND: (projectId: string, configFileBaseName: string) => {
     return errTemplate`\

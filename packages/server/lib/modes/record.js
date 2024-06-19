@@ -151,19 +151,15 @@ const updateInstanceStdout = async (options = {}) => {
 
     errors.warning('CLOUD_CANNOT_CREATE_RUN_OR_INSTANCE', err)
 
-    // // dont log exceptions if we have a 503 status code
-    // if (err.statusCode !== 503) {
-    //   return exception.create(err)
-    // }
-    return {
-      error: false,
-      message: 'OK',
+    // dont log exceptions if we have a 503 status code
+    if (err.statusCode !== 503) {
+      return exception.create(err)
     }
   }).finally(capture.restore)
 }
 
 const postInstanceResults = (options = {}) => {
-  const { runId, instanceId, results, metadata } = options
+  const { runId, instanceId, results, group, parallel, ciBuildId, metadata } = options
   let { stats, tests, video, screenshots, reporterStats, error } = results
 
   video = Boolean(video)
@@ -196,17 +192,7 @@ const postInstanceResults = (options = {}) => {
       stack: err.stack,
     })
 
-    const resp = {
-      videoUploadUrl: 'https://grid.browserstack.com',
-      captureUploadUrl: '',
-      screenshotUploadUrls: [],
-    }
-
-    screenshots.forEach((screenshot) => {
-      resp.screenshotUploadUrls.push({ screenshotId: screenshot.screenshotId, uploadUrl: 'https://grid.browserstack.com' })
-    })
-
-    // throwCloudCannotProceed({ parallel, ciBuildId, group, err })
+    throwCloudCannotProceed({ parallel, ciBuildId, group, err })
   })
 }
 
@@ -260,7 +246,7 @@ const createRun = Promise.method((options = {}) => {
     }
 
     // else throw
-    // errors.throwErr('RECORD_KEY_MISSING')
+    errors.throwErr('RECORD_KEY_MISSING')
   }
 
   // go back to being a string
@@ -376,7 +362,7 @@ const createRun = Promise.method((options = {}) => {
           recordKey = 'undefined'
         }
 
-        return errors.warning('CLOUD_RECORD_KEY_NOT_VALID', { recordKey, projectId })
+        return errors.throwErr('CLOUD_RECORD_KEY_NOT_VALID', recordKey, projectId)
       case 402: {
         const { code, payload } = err.error
 
@@ -511,7 +497,7 @@ const createRun = Promise.method((options = {}) => {
 })
 
 const createInstance = (options = {}) => {
-  let { runId, group, groupId, machineId, platform, spec } = options
+  let { runId, group, groupId, parallel, machineId, ciBuildId, platform, spec } = options
 
   spec = getSpecRelativePath(spec)
 
@@ -527,19 +513,12 @@ const createInstance = (options = {}) => {
       stack: err.stack,
     })
 
-    // throwCloudCannotProceed({
-    //   err,
-    //   group,
-    //   ciBuildId,
-    //   parallel,
-    // })
-
-    return {
-      spec,
-      instanceId: `${group}-${spec}`,
-      unallocatedInstances: 0,
-      allocatedInstances: 1,
-    }
+    throwCloudCannotProceed({
+      err,
+      group,
+      ciBuildId,
+      parallel,
+    })
   })
 }
 
@@ -561,15 +540,7 @@ const _postInstanceTests = ({
     hooks,
   })
   .catch((err) => {
-    // throwCloudCannotProceed({ parallel, ciBuildId, group, err })
-    return {
-      spec: instanceId.split('-')[1],
-      instanceId,
-      'totalInstances': 1,
-      'claimedInstances': 1,
-      'estimatedWallClockDuration': null,
-      'actions': [],
-    }
+    throwCloudCannotProceed({ parallel, ciBuildId, group, err })
   })
 }
 
@@ -639,8 +610,6 @@ const createRunAndRecordSpecs = (options = {}) => {
         })
       }
 
-      debug(`[createRun] response is ${JSON.stringify(resp)}`)
-
       const { runUrl, runId, machineId, groupId } = resp
       const protocolCaptureMeta = resp.capture || {}
 
@@ -648,7 +617,6 @@ const createRunAndRecordSpecs = (options = {}) => {
       let instanceId = null
 
       const beforeSpecRun = (spec) => {
-        debug(`before spec run for spec: ${spec}`)
         telemetry.startSpan({ name: 'record:beforeSpecRun' })
         project.setOnTestsReceived(onTestsReceived)
         capture.restore()
@@ -708,16 +676,12 @@ const createRunAndRecordSpecs = (options = {}) => {
           })
         })
         .then((resp) => {
-          debug('[createRunAndRecordSpecs] in afterspecrun')
-          debug('postInstanceResults resp %O', resp)
-          const { video, screenshots } = results
-
           if (!resp) {
             return
           }
 
-          debug('postInstanceResults resp2 is %O', resp)
-
+          debug('postInstanceResults resp %O', resp)
+          const { video, screenshots } = results
           const { videoUploadUrl, captureUploadUrl, screenshotUploadUrls } = resp
 
           return uploadArtifacts({
@@ -738,8 +702,6 @@ const createRunAndRecordSpecs = (options = {}) => {
           .finally(() => {
             // always attempt to upload stdout
             // even if uploading failed
-            debug(`[createRunAndRecordSpecs] in finally of afterSpecRun`)
-
             return updateInstanceStdout({
               captured,
               instanceId,
@@ -755,8 +717,6 @@ const createRunAndRecordSpecs = (options = {}) => {
         if (!instanceId) {
           return cb()
         }
-
-        debug(`onTestsReceived called with runnables: ${runnables} and cb: ${cb}`)
 
         // runnables will be null when there' no tests
         // this also means runtimeConfig will be missing
@@ -815,13 +775,10 @@ const createRunAndRecordSpecs = (options = {}) => {
           group,
         })
         .catch((err) => {
-          debug(`[onTestsReceived] response failed: Error: ${err.getMessage()}`)
           onError(err)
 
           return responseDidFail
         })
-
-        debug(`[onTestsReceived] response is : ${resp}`)
 
         if (response === responseDidFail) {
           debug('`responseDidFail` equals `response`, allowing browser to hang until it is killed: Response %o', { responseDidFail })

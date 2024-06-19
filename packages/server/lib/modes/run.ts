@@ -62,7 +62,6 @@ const iterateThroughSpecs = function (options: { specs: SpecFile[], runEachSpec:
   const ranSpecs: SpecFile[] = []
 
   async function parallelAndSerialWithRecord (runs) {
-    debug(`in parallelAndSerialWithRecord`)
     const { spec, claimedInstances, totalInstances, estimated, instanceId } = await beforeSpecRun()
 
     // no more specs to run? then we're done!
@@ -1054,7 +1053,6 @@ async function ready (options: ReadyOptions) {
   }
 
   async function runAllSpecs ({ beforeSpecRun, afterSpecRun, runUrl, parallel }: { beforeSpecRun?: BeforeSpecRun, afterSpecRun?: AfterSpecRun, runUrl?: string, parallel?: boolean }) {
-    debug(`[runAllSpecs]: specs is ${JSON.stringify(specs)}`)
     const results = await runSpecs({
       autoCancelAfterFailures,
       beforeSpecRun,
