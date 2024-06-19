@@ -1,7 +1,7 @@
 const _ = require('lodash')
+const request = require('../../request')()
 
 const debug = require('debug')('cypress:server:turboscale')
-
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
 const serializeError = (err) => {
@@ -19,19 +19,38 @@ const serializeError = (err) => {
   return obj
 }
 
+const handleHook = async (hook, result) => {
+  try {
+    let options = {
+      method: 'POST',
+      uri: 'http://localhost:8000/cypress/',
+      body: {
+        result,
+        hook,
+      },
+      json: true,
+    }
+
+    debug(`[${hook}]: Sending ${JSON.stringify(result)} to ${options.uri}`)
+    await request.rp(options)
+  } catch (err) {
+    debug(`[${hook}]: Error in sending ${JSON.stringify(result)}. Error: ${err.message}: ${err.stack}`)
+  }
+}
+
 module.exports = {
   wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
     return Promise.try(() => {
       return invoke(ids.eventId, args)
     })
-    .then((value) => {
+    .then(async (value) => {
       // undefined is coerced into null when sent over ipc, but we need
       // to differentiate between them for 'task' event
       if (value === undefined) {
         value = UNDEFINED_SERIALIZED
       }
 
-      debug(`Patching Event: ${event} with response: ${JSON.stringify(value)}`)
+      await handleHook(value)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
     }).catch((err) => {
