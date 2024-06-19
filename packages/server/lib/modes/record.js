@@ -151,9 +151,13 @@ const updateInstanceStdout = async (options = {}) => {
 
     errors.warning('CLOUD_CANNOT_CREATE_RUN_OR_INSTANCE', err)
 
-    // dont log exceptions if we have a 503 status code
-    if (err.statusCode !== 503) {
-      return exception.create(err)
+    // // dont log exceptions if we have a 503 status code
+    // if (err.statusCode !== 503) {
+    //   return exception.create(err)
+    // }
+    return {
+      error: false,
+      message: 'OK',
     }
   }).finally(capture.restore)
 }
@@ -190,6 +194,16 @@ const postInstanceResults = (options = {}) => {
   .catch((err) => {
     debug('failed updating instance %o', {
       stack: err.stack,
+    })
+
+    const resp = {
+      videoUploadUrl: 'https://grid.browserstack.com',
+      captureUploadUrl: '',
+      screenshotUploadUrls: [],
+    }
+
+    screenshots.forEach((screenshot) => {
+      resp.screenshotUploadUrls.push({ screenshotId: screenshot.screenshotId, uploadUrl: 'https://grid.browserstack.com' })
     })
 
     // throwCloudCannotProceed({ parallel, ciBuildId, group, err })
@@ -497,7 +511,7 @@ const createRun = Promise.method((options = {}) => {
 })
 
 const createInstance = (options = {}) => {
-  let { runId, group, groupId, parallel, machineId, ciBuildId, platform, spec } = options
+  let { runId, group, groupId, machineId, ciBuildId, platform, spec } = options
 
   spec = getSpecRelativePath(spec)
 
@@ -513,12 +527,19 @@ const createInstance = (options = {}) => {
       stack: err.stack,
     })
 
-    throwCloudCannotProceed({
-      err,
-      group,
-      ciBuildId,
-      parallel,
-    })
+    // throwCloudCannotProceed({
+    //   err,
+    //   group,
+    //   ciBuildId,
+    //   parallel,
+    // })
+
+    return {
+      spec,
+      instanceId: `${ciBuildId}-${spec}`,
+      unallocatedInstances: 0,
+      allocatedInstances: 1,
+    }
   })
 }
 
@@ -540,7 +561,15 @@ const _postInstanceTests = ({
     hooks,
   })
   .catch((err) => {
-    throwCloudCannotProceed({ parallel, ciBuildId, group, err })
+    // throwCloudCannotProceed({ parallel, ciBuildId, group, err })
+    return {
+      spec: instanceId.split('-')[1],
+      instanceId,
+      'totalInstances': 1,
+      'claimedInstances': 1,
+      'estimatedWallClockDuration': null,
+      'actions': [],
+    }
   })
 }
 
@@ -685,15 +714,7 @@ const createRunAndRecordSpecs = (options = {}) => {
           const { video, screenshots } = results
 
           if (!resp) {
-            resp = {
-              videoUploadUrl: 'https://grid.browserstack.com',
-              captureUploadUrl: '',
-              screenshotUploadUrls: [],
-            }
-
-            screenshots.forEach((screenshot) => {
-              screenshotUploadUrls.push({ screenshotId: screenshot.screenshotId, uploadUrl: 'https://grid.browserstack.com' })
-            })
+            return
           }
 
           debug('postInstanceResults resp2 is %O', resp)
