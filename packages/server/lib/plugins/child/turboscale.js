@@ -1,6 +1,7 @@
 const _ = require('lodash')
-const request = require('../../request')()
+const Promise = require('bluebird')
 
+const request = require('../../request')()
 const debug = require('debug')('cypress:server:turboscale')
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
 
