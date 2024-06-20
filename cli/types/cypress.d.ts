@@ -6042,6 +6042,7 @@ declare namespace Cypress {
     path: string
     scaled: boolean
     blackout: string[]
+    testId: string
   }
 
   interface AfterScreenshotReturnObject {
