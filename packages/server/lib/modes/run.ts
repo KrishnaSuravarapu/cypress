@@ -28,7 +28,7 @@ import type { ProtocolManager } from '../cloud/protocol'
 import { telemetry } from '@packages/telemetry'
 import { CypressRunResult, createPublicBrowser, createPublicConfig, createPublicRunResults, createPublicSpec, createPublicSpecResults } from './results'
 import { EarlyExitTerminator } from '../util/graceful_crash_handling'
-const capture = require('../capture')
+import { beforeSpecRunTurboscale, afterSpecRunTurboscale } from '../plugins/child/turboscale'
 
 type SetScreenshotMetadata = (data: TakeScreenshotProps) => void
 type ScreenshotMetadata = ReturnType<typeof screenshotMetadata>
@@ -755,10 +755,6 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
   let isFirstSpecInBrowser = true
 
   async function runEachSpec (spec: SpecWithRelativeRoot, index: number, length: number, estimated: number, instanceId: string) {
-    debug(`Running spec: ${spec}`)
-    capture.restore()
-    debug(`Started Capture for spec spec: ${spec}`)
-    let captured = capture.stdout()
     const span = telemetry.startSpan({
       name: 'run:spec',
       active: true,
@@ -789,9 +785,6 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
     }
 
     span?.end()
-
-    results.stdout = captured.toString()
-    debug(`captured data is ${captured.toString()}`)
 
     return results
   }
@@ -1127,6 +1120,8 @@ async function ready (options: ReadyOptions) {
   // not recording, can't be parallel
   return runAllSpecs({
     parallel: false,
+    beforeSpecRun: beforeSpecRunTurboscale,
+    afterSpecRun: afterSpecRunTurboscale,
   })
 }
 

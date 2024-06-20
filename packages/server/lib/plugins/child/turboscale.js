@@ -1,9 +1,12 @@
 const _ = require('lodash')
 const Promise = require('bluebird')
 
+const capture = require('../../capture')
 const request = require('../../request')()
 const debug = require('debug')('cypress:server:turboscale')
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
+
+let captured = null
 
 const serializeError = (err) => {
   const obj = _.pick(err,
@@ -60,4 +63,14 @@ module.exports = {
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, serializeError(err))
     })
   },
+  beforeSpecRunTurboscale (spec) {
+    debug('BeforeSpecRun called')
+    capture.restore()
+    captured = capture.stdout()
+  },
+  afterSpecRunTurboscale (spec, results, config) {
+    debug(`afterSpecRun called: ${captured.toString()}`)
+    results[1].stdout = captured.toString()
+  },
+
 }
