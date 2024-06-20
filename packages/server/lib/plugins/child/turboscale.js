@@ -1,12 +1,9 @@
 const _ = require('lodash')
 const Promise = require('bluebird')
 
-const capture = require('../../capture')
 const request = require('../../request')()
 const debug = require('debug')('cypress:server:turboscale')
 const UNDEFINED_SERIALIZED = '__cypress_undefined__'
-
-let captured = null
 
 const serializeError = (err) => {
   const obj = _.pick(err,
@@ -44,12 +41,6 @@ const handleHook = async (hook, result) => {
 
 module.exports = {
   wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
-    if (event === 'before:spec') {
-      debug('BeforeSpecRun called')
-      capture.restore()
-      captured = capture.stdout()
-    }
-
     return Promise.try(() => {
       debug(`args is ${JSON.stringify(args)}`)
 
@@ -60,11 +51,6 @@ module.exports = {
       // to differentiate between them for 'task' event
       if (value === undefined) {
         value = UNDEFINED_SERIALIZED
-      }
-
-      if (event === 'after:spec') {
-        debug(`afterSpecRun called: ${captured.toString()}`)
-        args[1].stdout = captured.toString()
       }
 
       await handleHook(event, args)
