@@ -28,6 +28,9 @@ import type { ProtocolManager } from '../cloud/protocol'
 import { telemetry } from '@packages/telemetry'
 import { CypressRunResult, createPublicBrowser, createPublicConfig, createPublicRunResults, createPublicSpec, createPublicSpecResults } from './results'
 import { EarlyExitTerminator } from '../util/graceful_crash_handling'
+const capture = require('../capture')
+
+let captured = capture.stdout
 
 type SetScreenshotMetadata = (data: TakeScreenshotProps) => void
 type ScreenshotMetadata = ReturnType<typeof screenshotMetadata>
@@ -703,6 +706,11 @@ async function waitForTestsToFinishRunning (options: { project: Project, screens
     results.video = null
   }
 
+  if (captured) {
+    debug(`after:spec:stdout called: ${captured.toString()}`)
+    await runEvents.execute('after:spec:stdout', { spec: publicSpec, stdout: captured.toString() })
+  }
+
   // the early exit terminator persists between specs,
   // so if this spec crashed, the next one will report as
   // a crash too unless it is reset. Would like to not rely
@@ -764,6 +772,9 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
       type: spec.specType,
       firstSpec: isFirstSpecInBrowser,
     })
+
+    capture.restore()
+    captured = capture.stdout()
 
     await protocolManager?.beforeSpec({
       ...spec,
