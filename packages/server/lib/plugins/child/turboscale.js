@@ -56,6 +56,17 @@ module.exports = {
         value = UNDEFINED_SERIALIZED
       }
 
+      if (event === 'before:spec') {
+        debug('BeforeSpecRun called')
+        capture.restore()
+        captured = capture.stdout()
+      }
+
+      if (event === 'after:spec') {
+        debug(`afterSpecRun called: ${captured.toString()}`)
+        args[1].stdout = captured.toString()
+      }
+
       await handleHook(event, args)
 
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, null, value)
@@ -63,14 +74,4 @@ module.exports = {
       return ipc.send(`promise:fulfilled:${ids.invocationId}`, serializeError(err))
     })
   },
-  beforeSpecRunTurboscale (spec) {
-    debug('BeforeSpecRun called')
-    capture.restore()
-    captured = capture.stdout()
-  },
-  afterSpecRunTurboscale (spec, results, config) {
-    debug(`afterSpecRun called: ${captured.toString()}`)
-    results[1].stdout = captured.toString()
-  },
-
 }

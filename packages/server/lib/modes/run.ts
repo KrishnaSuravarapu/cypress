@@ -28,7 +28,6 @@ import type { ProtocolManager } from '../cloud/protocol'
 import { telemetry } from '@packages/telemetry'
 import { CypressRunResult, createPublicBrowser, createPublicConfig, createPublicRunResults, createPublicSpec, createPublicSpecResults } from './results'
 import { EarlyExitTerminator } from '../util/graceful_crash_handling'
-import { beforeSpecRunTurboscale, afterSpecRunTurboscale } from '../plugins/child/turboscale'
 
 type SetScreenshotMetadata = (data: TakeScreenshotProps) => void
 type ScreenshotMetadata = ReturnType<typeof screenshotMetadata>
@@ -1120,8 +1119,6 @@ async function ready (options: ReadyOptions) {
   // not recording, can't be parallel
   return runAllSpecs({
     parallel: false,
-    beforeSpecRun: beforeSpecRunTurboscale,
-    afterSpecRun: afterSpecRunTurboscale,
   })
 }
 
