@@ -790,8 +790,8 @@ async function runSpecs (options: { config: Cfg, browser: Browser, sys: any, hea
 
     span?.end()
 
-    results.stdout = captured
-    debug(`captured data is ${captured}`)
+    results.stdout = captured.toString()
+    debug(`captured data is ${captured.toString()}`)
 
     return results
   }
