@@ -44,6 +44,12 @@ const handleHook = async (hook, result) => {
 
 module.exports = {
   wrapChildPromiseTurboscale (ipc, invoke, ids, args = [], event) {
+    if (event === 'before:spec') {
+      debug('BeforeSpecRun called')
+      capture.restore()
+      captured = capture.stdout()
+    }
+
     return Promise.try(() => {
       debug(`args is ${JSON.stringify(args)}`)
 
@@ -54,12 +60,6 @@ module.exports = {
       // to differentiate between them for 'task' event
       if (value === undefined) {
         value = UNDEFINED_SERIALIZED
-      }
-
-      if (event === 'before:spec') {
-        debug('BeforeSpecRun called')
-        capture.restore()
-        captured = capture.stdout()
       }
 
       if (event === 'after:spec') {
