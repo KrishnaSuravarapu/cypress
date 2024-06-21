@@ -495,7 +495,7 @@ module.exports = {
     const duration = new Date() - new Date(data.startTime)
 
     details = _.extend({}, data, details, { duration })
-    details = _.pick(details, 'testAttemptIndex', 'size', 'takenAt', 'dimensions', 'multipart', 'pixelRatio', 'name', 'specName', 'testFailure', 'path', 'scaled', 'blackout', 'duration', 'testId')
+    details = _.pick(details, 'testAttemptIndex', 'size', 'takenAt', 'dimensions', 'multipart', 'pixelRatio', 'name', 'specName', 'testFailure', 'path', 'scaled', 'blackout', 'duration', 'testId', 'screenshotId')
 
     if (!plugins.has('after:screenshot')) {
       return Promise.resolve(details)
