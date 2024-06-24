@@ -448,7 +448,7 @@ async function waitForBrowserToConnect (options: { project: Project, socketId: s
   // path for next spec in launch browser.
   // we need it to run on every spec even in single browser mode
   currentSetScreenshotMetadata = (data) => {
-    data.specName = spec.relativeToCommonRoot
+    data.specName = spec.relative
 
     return data
   }
