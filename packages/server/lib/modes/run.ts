@@ -707,8 +707,8 @@ async function waitForTestsToFinishRunning (options: { project: Project, screens
   }
 
   if (captured) {
-    debug(`_after:spec:stdout called: ${captured.toString()}`)
-    await runEvents.execute('_after:spec:stdout', { spec: publicSpec, stdout: captured.toString() })
+    debug(`_after:spec:stdout called`)
+    await runEvents.execute('_after:spec:stdout', { publicSpec, stdout: captured.toString(), spec, results })
   }
 
   // the early exit terminator persists between specs,
