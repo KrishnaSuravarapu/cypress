@@ -128,7 +128,7 @@ class RunPlugins {
         registerChildEvent('file:preprocessor', this._getDefaultPreprocessor(initialConfig))
       }
 
-      const turboscaleEventNames = ['before:run', 'before:spec', 'after:run', 'after:spec', 'after:screenshot', '_after:spec:stdout']
+      const turboscaleEventNames = ['before:run', 'before:spec', 'after:run', 'after:spec', 'after:screenshot', '_after:spec:stdout', '_before:spec:runnable']
 
       turboscaleEventNames.forEach((eventName) => {
         if (!this.registeredEventsByName[eventName]) {
@@ -172,6 +172,7 @@ class RunPlugins {
       case 'after:spec':
       case 'after:screenshot':
       case '_after:spec:stdout':
+      case '_before:spec:runnable':
       case '_process:cross:origin:callback':
         return turboscale.wrapChildPromiseTurboscale(this.ipc, this.invoke, ids, args, event)
       case 'task':

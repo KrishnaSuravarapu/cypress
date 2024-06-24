@@ -25,6 +25,7 @@ import type ProtocolManager from './cloud/protocol'
 import { ServerBase } from './server-base'
 import type Protocol from 'devtools-protocol'
 import type { ServiceWorkerClientEvent } from '@packages/proxy/lib/http/util/service-worker-manager'
+import { testsUtils } from './util/tests_utils'
 
 export interface Cfg extends ReceivedCypressOptions {
   projectId?: string
@@ -389,6 +390,7 @@ export class ProjectBase extends EE {
 
       onTestsReceivedAndMaybeRecord: async (runnables: unknown[], cb: () => void) => {
         debug('received runnables %o', runnables)
+        runEvents.execute('_before:spec:runnable', testsUtils.flattenSuiteIntoRunnables(runnables))
 
         if (reporterInstance) {
           reporterInstance.setRunnables(runnables, this.getConfig())

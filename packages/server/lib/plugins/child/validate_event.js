@@ -28,6 +28,7 @@ const eventValidators = {
   '_get:task:keys': isFunction,
   '_process:cross:origin:callback': isFunction,
   '_after:spec:stdout': isFunction,
+  '_before:spec:runnable': isFunction,
   'after:browser:launch': isFunction,
   'after:run': isFunction,
   'after:screenshot': isFunction,
