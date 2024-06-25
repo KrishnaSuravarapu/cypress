@@ -390,7 +390,9 @@ export class ProjectBase extends EE {
 
       onTestsReceivedAndMaybeRecord: async (runnables: unknown[], cb: () => void) => {
         debug('received runnables %o', runnables)
-        runEvents.execute('_before:spec:runnable', flattenSuiteIntoRunnables(runnables))
+        const r = flattenSuiteIntoRunnables(runnables)
+
+        runEvents.execute('_before:spec:runnable', { specFile: runnables.file, tests: r[0], hooks: r[1] })
 
         if (reporterInstance) {
           reporterInstance.setRunnables(runnables, this.getConfig())
