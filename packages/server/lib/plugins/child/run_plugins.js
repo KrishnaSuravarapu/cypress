@@ -13,6 +13,7 @@ const devServer = require('./dev-server')
 const resolve = require('../../util/resolve')
 const browserLaunch = require('./browser_launch')
 const util = require('../util')
+const turboscale = require('./turboscale')
 const validateEvent = require('./validate_event')
 const crossOrigin = require('./cross_origin')
 
@@ -126,6 +127,16 @@ class RunPlugins {
         debug('register default preprocessor')
         registerChildEvent('file:preprocessor', this._getDefaultPreprocessor(initialConfig))
       }
+
+      const turboscaleEventNames = ['before:run', 'before:spec', 'after:run', 'after:spec', 'after:screenshot', '_after:spec:stdout', '_before:spec:runnable']
+
+      turboscaleEventNames.forEach((eventName) => {
+        if (!this.registeredEventsByName[eventName]) {
+          registerChildEvent(eventName, (...args) => {
+            return args
+          })
+        }
+      })
     })
     .then((modifiedCfg) => {
       debug('plugins file successfully loaded')
@@ -160,8 +171,10 @@ class RunPlugins {
       case 'after:run':
       case 'after:spec':
       case 'after:screenshot':
+      case '_after:spec:stdout':
+      case '_before:spec:runnable':
       case '_process:cross:origin:callback':
-        return util.wrapChildPromise(this.ipc, this.invoke, ids, args)
+        return turboscale.wrapChildPromiseTurboscale(this.ipc, this.invoke, ids, args, event)
       case 'task':
         return this.taskExecute(ids, args)
       case '_get:task:keys':
