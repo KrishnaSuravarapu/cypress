@@ -352,44 +352,49 @@ export default {
   },
 
   createRun (options: CreateRunOptions) {
-    const { warnings } = { warnings: [] }
+    const preflightOptions = _.pick(options, ['projectId', 'projectRoot', 'ciBuildId', 'browser', 'testingType', 'parallel', 'timeout'])
 
-    return retryWithBackoff((attemptIndex) => {
-      const body = {
-        ..._.pick(options, [
-          'autoCancelAfterFailures',
-          'ci',
-          'specs',
-          'commit',
-          'group',
-          'platform',
-          'parallel',
-          'ciBuildId',
-          'projectId',
-          'recordKey',
-          'specPattern',
-          'tags',
-          'testingType',
-        ]),
-        runnerCapabilities,
-      }
+    return this.sendPreflight(preflightOptions)
+    .then((result) => {
+      const { warnings } = result
 
-      return rp.post({
-        body,
-        url: recordRoutes.runs(),
-        json: true,
-        encrypt: preflightResult.encrypt,
-        timeout: options.timeout ?? SIXTY_SECONDS,
-        headers: {
-          'x-route-version': '4',
-          'x-cypress-request-attempt': attemptIndex,
-        },
-      })
-      .tap((result) => {
-        // Tack on any preflight warnings prior to run warnings
-        if (warnings) {
-          result.warnings = warnings.concat(result.warnings ?? [])
+      return retryWithBackoff((attemptIndex) => {
+        const body = {
+          ..._.pick(options, [
+            'autoCancelAfterFailures',
+            'ci',
+            'specs',
+            'commit',
+            'group',
+            'platform',
+            'parallel',
+            'ciBuildId',
+            'projectId',
+            'recordKey',
+            'specPattern',
+            'tags',
+            'testingType',
+          ]),
+          runnerCapabilities,
         }
+
+        return rp.post({
+          body,
+          url: recordRoutes.runs(),
+          json: true,
+          encrypt: preflightResult.encrypt,
+          timeout: options.timeout ?? SIXTY_SECONDS,
+          headers: {
+            'x-route-version': '4',
+            'x-cypress-request-attempt': attemptIndex,
+          },
+        })
+        .tap((result) => {
+          // Tack on any preflight warnings prior to run warnings
+          if (warnings) {
+            result.warnings = warnings.concat(result.warnings ?? [])
+          }
+        })
       })
     })
     .then(async (result: CreateRunResponse) => {
