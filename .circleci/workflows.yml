@@ -30,7 +30,7 @@ mainBuildFilters: &mainBuildFilters
         - /^release\/\d+\.\d+\.\d+$/
         # use the following branch as well to ensure that v8 snapshot cache updates are fully tested
         - 'update-v8-snapshot-cache-on-develop'
-        - 'ignore-chrom-prefs'
+        - 'chore/update_reporter_mobx'
         - 'publish-binary'
 
 # usually we don't build Mac app - it takes a long time
@@ -42,7 +42,7 @@ macWorkflowFilters: &darwin-workflow-filters
     - equal: [ develop, << pipeline.git.branch >> ]
     # use the following branch as well to ensure that v8 snapshot cache updates are fully tested
     - equal: [ 'update-v8-snapshot-cache-on-develop', << pipeline.git.branch >> ]
-    - equal: [ 'ignore-chrom-prefs', << pipeline.git.branch >> ]
+    - equal: [ 'chore/update_reporter_mobx', << pipeline.git.branch >> ]
     - matches:
         pattern: /^release\/\d+\.\d+\.\d+$/
         value: << pipeline.git.branch >>
@@ -53,7 +53,7 @@ linuxArm64WorkflowFilters: &linux-arm64-workflow-filters
     - equal: [ develop, << pipeline.git.branch >> ]
     # use the following branch as well to ensure that v8 snapshot cache updates are fully tested
     - equal: [ 'update-v8-snapshot-cache-on-develop', << pipeline.git.branch >> ]
-    - equal: [ 'ignore-chrom-prefs', << pipeline.git.branch >> ]
+    - equal: [ 'chore/update_reporter_mobx', << pipeline.git.branch >> ]
     - matches:
         pattern: /^release\/\d+\.\d+\.\d+$/
         value: << pipeline.git.branch >>
@@ -76,7 +76,7 @@ windowsWorkflowFilters: &windows-workflow-filters
     - equal: [ develop, << pipeline.git.branch >> ]
     # use the following branch as well to ensure that v8 snapshot cache updates are fully tested
     - equal: [ 'update-v8-snapshot-cache-on-develop', << pipeline.git.branch >> ]
-    - equal: [ 'feat/support_next_14', << pipeline.git.branch >> ]
+    - equal: [ 'chore/update_reporter_mobx', << pipeline.git.branch >> ]
     - matches:
         pattern: /^release\/\d+\.\d+\.\d+$/
         value: << pipeline.git.branch >>
@@ -85,7 +85,7 @@ executors:
   # the Docker image with Cypress dependencies and Chrome browser
   cy-doc:
     docker:
-      - image: cypress/browsers-internal:node18.17.1-chrome124-ff125
+      - image: cypress/browsers-internal:node18.17.1-chrome128-ff131
     # by default, we use "medium" to balance performance + CI costs. bump or reduce on a per-job basis if needed.
     resource_class: medium
     environment:
@@ -94,7 +94,7 @@ executors:
   
   kitchensink-executor:
     docker:
-      - image: cypress/browsers-internal:node18.20.2-chrome124-ff125
+      - image: cypress/browsers-internal:node20.15.0-chrome126-ff131
     # by default, we use "medium" to balance performance + CI costs. bump or reduce on a per-job basis if needed.
     resource_class: medium
     environment:
@@ -104,7 +104,7 @@ executors:
   # Docker image with non-root "node" user
   non-root-docker-user:
     docker:
-      - image: cypress/browsers-internal:node18.17.1-chrome124-ff125
+      - image: cypress/browsers-internal:node18.17.1-chrome128-ff131
         user: node
     environment:
       PLATFORM: linux
@@ -152,7 +152,7 @@ commands:
           name: Set environment variable to determine whether or not to persist artifacts
           command: |
             echo "Setting SHOULD_PERSIST_ARTIFACTS variable"
-            echo 'if ! [[ "$CIRCLE_BRANCH" != "develop" && "$CIRCLE_BRANCH" != "release/"* && "$CIRCLE_BRANCH" != "ignore-chrom-prefs" ]]; then
+            echo 'if ! [[ "$CIRCLE_BRANCH" != "develop" && "$CIRCLE_BRANCH" != "release/"* && "$CIRCLE_BRANCH" != "chore/update_reporter_mobx" ]]; then
                 export SHOULD_PERSIST_ARTIFACTS=true
             fi' >> "$BASH_ENV"
   # You must run `setup_should_persist_artifacts` command and be using bash before running this command
@@ -361,7 +361,7 @@ commands:
           steps:
             - restore_cache:
                 name: Restore cache state, to check for known modules cache existence
-                key: v{{ checksum ".circleci/cache-version.txt" }}-{{ checksum "platform_key" }}-state-of-node-modules-cache-{{ checksum "circle_cache_key" }}-{{ checksum "centos7-builder.Dockerfile" }}
+                key: v{{ checksum ".circleci/cache-version.txt" }}-{{ checksum "platform_key" }}-state-of-node-modules-cache-{{ checksum "circle_cache_key" }}-centos7
       - unless:
           condition: <<parameters.build-better-sqlite3>>
           steps:
@@ -420,7 +420,7 @@ commands:
           steps:
             - save_cache:
                 name: Saving node-modules cache state key
-                key: v{{ checksum ".circleci/cache-version.txt" }}-{{ checksum "platform_key" }}-state-of-node-modules-cache-{{ checksum "circle_cache_key" }}-{{ checksum "centos7-builder.Dockerfile" }}
+                key: v{{ checksum ".circleci/cache-version.txt" }}-{{ checksum "platform_key" }}-state-of-node-modules-cache-{{ checksum "circle_cache_key" }}-centos7
                 paths:
                   - node_modules_installed
       - unless:
@@ -514,8 +514,8 @@ commands:
             echo "Google Chrome Version: `google-chrome-<<parameters.channel>> --version`"
 
   # This code builds better-sqlite3 on CentOS 7. This is necessary because CentOS 7 has the oldest glibc version
-  # that we support. The script checks for the existence of the Centos7-builder image tar file, and skips if it already
-  # exists. If you want to rebuild the image, set the REBUILD_CENTOS_BUILDER_IMAGE environment variable to any value.
+  # that we support. This job uses the cypress/centos7-builder https://hub.docker.com/repository/docker/cypress/centos7-builder/general
+  # image to build better-sqlite3 against an older version of glibc (2.17).
   # Since this is running Docker remote, we need to copy the project into the container, and copy the built plugin out
   # of the container because the host running docker does not have access to the project directory so volume mounts are
   # not possible. The built plugin is copied to the project directory so it can be injected into the final binary.
@@ -523,36 +523,13 @@ commands:
     description: Build better-sqlite3 for CentOS 7
     steps:
       - setup_remote_docker
-      - restore_cache:
-          keys:
-            - cypress-centos7-builder-{{ checksum "centos7-builder.Dockerfile" }}
-      - restore_cache:
-          keys:
-            - better-sqlite3-{{ checksum "node_modules/better-sqlite3/package.json" }}-{{ checksum "node_modules/electron/package.json" }}-{{ checksum "centos7-builder.Dockerfile" }}
-      - run:
-          name: Build or load centos7-builder image
-          command: |
-            if [[ ! -f better_sqlite3.node ]]; then
-              set -x
-              apt update && apt install -y docker.io
-              if [[ ! -f centos7-builder.tar || -n $REBUILD_CENTOS_BUILDER_IMAGE ]]; then
-                  echo "*" > .dockerignore
-                  docker build -t centos7-builder -f centos7-builder.Dockerfile .
-                  docker save centos7-builder > centos7-builder.tar
-                  rm .dockerignore
-              else
-                  docker load < centos7-builder.tar
-              fi
-            fi
-      - save_cache:
-          key: cypress-centos7-builder-{{ checksum "centos7-builder.Dockerfile" }}
-          paths:
-            - centos7-builder.tar
       - run:
           name: Build better-sqlite3 for CentOS 7
           command: |
             if [[ ! -f better_sqlite3.node ]]; then
-              docker run -d --name centos7-builder centos7-builder /bin/bash -c "sleep 1000000000"
+              set -x
+              apt update && apt install -y docker.io
+              docker run -d --name centos7-builder cypress/centos7-builder:latest /bin/bash -c "sleep 1000000000"
               docker cp ~/cypress/node_modules/better-sqlite3 centos7-builder:/better-sqlite3
               docker exec -it centos7-builder /bin/bash -c "cd /better-sqlite3 && source /root/.bashrc && chown -R root:root . && npm install --ignore-scripts && npx --no-install prebuild -r electron -t 27.1.3 --include-regex 'better_sqlite3.node$'"
               docker cp centos7-builder:/better-sqlite3/build/Release/better_sqlite3.node ~/cypress/node_modules/better-sqlite3/build/Release/better_sqlite3.node
@@ -562,7 +539,7 @@ commands:
               cp ~/cypress/better_sqlite3.node ~/cypress/node_modules/better-sqlite3/build/Release/better_sqlite3.node
             fi
       - save_cache:
-          key: better-sqlite3-{{ checksum "node_modules/better-sqlite3/package.json" }}-{{ checksum "node_modules/electron/package.json" }}-{{ checksum "centos7-builder.Dockerfile" }}
+          key: better-sqlite3-{{ checksum "node_modules/better-sqlite3/package.json" }}-{{ checksum "node_modules/electron/package.json" }}-centos7
           paths:
             - better_sqlite3.node
       - run:
@@ -646,6 +623,9 @@ commands:
       browser:
         description: browser shortname to target
         type: string
+      executor:
+        description: the executor in use. Only used if Windows for workaround purposes
+        type: executor
       percy:
         description: enable percy
         type: boolean
@@ -660,6 +640,16 @@ commands:
         default: ''
     steps:
       - restore_cached_workspace
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       - windows-install-chrome:
           browser: <<parameters.browser>>
       - run:
@@ -1393,6 +1383,16 @@ jobs:
     resource_class: << parameters.resource_class >>
     steps:
       - restore_cached_workspace
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       - run:
           name: Top level packages
           command: yarn list --depth=0 || true
@@ -1460,6 +1460,30 @@ jobs:
             PERCY_PARALLEL_NONCE=$CIRCLE_WORKFLOW_WORKSPACE_ID \
             yarn percy build:finalize || yarn percy build:finalize
 
+  # verify accessibility scores from Cypress
+  verify-accessibility-results:
+    <<: *defaults
+    resource_class: small
+    steps:
+      - run: |
+          if [[ -z "$MAIN_RECORD_KEY" ]]; then
+            echo "skipping for contributor PRs since we don't record to the cloud"
+            circleci-agent step halt
+          fi
+      - update_known_hosts
+      - run:
+          name: checkout
+          command: git clone -b "$CIRCLE_BRANCH" "$CIRCLE_REPOSITORY_URL" --depth 1
+      - run:
+          name: Install extract-cloud-results package
+          command: |
+            npm install https://cdn.cypress.io/extract-cloud-results/v1/extract-cloud-results.tgz
+      - run:
+          name: Verify Accessibility Results
+          command: |
+            cp ./cypress/scripts/verify-accessibility-results.js verify-accessibility-results.js
+            CYPRESS_RECORD_KEY=$MAIN_RECORD_KEY node verify-accessibility-results.js
+
   ready-to-release:
     <<: *defaults
     resource_class: small
@@ -1506,6 +1530,16 @@ jobs:
     steps:
       - restore_cached_workspace
       - restore_cached_system_tests_deps
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       # TODO: Remove this once we switch off self-hosted M1 runners
       - when:
           condition:
@@ -1521,7 +1555,7 @@ jobs:
                 name: Run v8 integration tests
                 command: |
                   source ./scripts/ensure-node.sh
-                  yarn test-integration --scope "'@tooling/{packherd,v8-snapshot,electron-mksnapshot}'"
+                  yarn test-integration --scope=@tooling/{packherd,v8-snapshot,electron-mksnapshot}
             - verify-mocha-results:
                 expectedResultCount: 3
       - when:
@@ -1533,7 +1567,7 @@ jobs:
                 name: Run v8 integration tests
                 command: |
                   source ./scripts/ensure-node.sh
-                  yarn test-integration --scope "'@tooling/packherd'"
+                  yarn test-integration --scope=@tooling/packherd
             - verify-mocha-results:
                 expectedResultCount: 1
       - store_test_results:
@@ -1551,6 +1585,16 @@ jobs:
     parallelism: 1
     steps:
       - restore_cached_workspace
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       - run:
           name: Driver memory tests in Electron
           environment:
@@ -1647,7 +1691,7 @@ jobs:
     parallelism: 1
     steps:
       - restore_cached_workspace
-      - run: yarn test-unit --scope @packages/server
+      - run: yarn test-unit --scope=@packages/server
       - verify-mocha-results:
           expectedResultCount: 1
       - store_test_results:
@@ -1671,6 +1715,16 @@ jobs:
             equal: [ *darwin-arm64-executor, << parameters.executor >> ]
           steps:
             - run: rm -f /tmp/cypress/junit/*
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       - run: yarn workspace @packages/server test-unit cloud/environment_spec.ts
       - verify-mocha-results:
           expectedResultCount: 1
@@ -1683,7 +1737,7 @@ jobs:
     parallelism: 1
     steps:
       - restore_cached_workspace
-      - run: yarn test-integration --scope @packages/server
+      - run: yarn test-integration --scope=@packages/server
       - verify-mocha-results:
           expectedResultCount: 1
       - store_test_results:
@@ -1724,6 +1778,39 @@ jobs:
     steps:
       - maybe_skip_binary_jobs
       - run-binary-system-tests
+  yarn-pnp-preprocessor-system-test:
+    parallelism: 1
+    working_directory: ~/cypress
+    docker:
+      # we need an image with yarn 4 berry installed on it to run this test
+      - image: cypress/base-internal:18.17.1-yarn-berry
+    environment:
+      # needed to inform the bootstrap-docker-container.sh script to link the binary in the system-test project directory
+      REPO_DIR: /root/cypress
+      TEST_PROJECT_DIR: ./system-tests/projects/yarn-v4.3.1-pnp-dep-resolution
+      USE_YARN_TO_INSTALL_CYPRESS_BINARY: true
+    steps:
+      - maybe_skip_binary_jobs
+      - attach_workspace:
+          at: ~/
+      # required node is set in the docker container already with yarn 4
+      - run:
+          name: Install monorepo dependencies with yarn v1.22.22
+          command: |
+            # we need to install the monorepo dependencies here in a fresh manner.
+            # set to the expected version of yarn and install the dependencies
+            yarn set version 1.22.22
+            yarn install --ignore-scripts
+      - run:
+          name: install dependencies in yarn-v4.3.1-pnp-dep-resolution with yarn berry 4.3.1
+          command: |
+            yarn set version 4.3.1
+            cd ./system-tests/projects/yarn-v4.3.1-pnp-dep-resolution && yarn
+      - run:
+          name: Bootstrap the Cypress binary and run binary system test
+          command: |
+            # we need to bootstrap the binary into our project directory and run the tests
+            source ./system-tests/scripts/bootstrap-docker-container.sh 'yarn cypress run'
 
   system-tests-chrome:
     <<: *defaults
@@ -1783,6 +1870,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: frontend-shared
           type: ct
@@ -1798,6 +1886,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: launchpad
           type: ct
@@ -1818,6 +1907,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: launchpad
           type: e2e
@@ -1836,6 +1926,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: app
           type: ct
@@ -1855,6 +1946,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: app
           type: e2e
@@ -1911,6 +2003,7 @@ jobs:
     steps:
       - run-new-ui-tests:
           browser: chrome
+          executor: << parameters.executor >>
           percy: << parameters.percy >>
           package: reporter
           type: ct
@@ -1992,7 +2085,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/webpack-preprocessor
+          command: yarn lerna run build --scope=@cypress/webpack-preprocessor
       - run:
           name: Run tests
           command: yarn workspace @cypress/webpack-preprocessor test
@@ -2037,7 +2130,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/vue
+          command: yarn lerna run build --scope=@cypress/vue
       - store_test_results:
           path: npm/vue/test_results
       - store_artifacts:
@@ -2050,7 +2143,16 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/angular
+          command: yarn lerna run build --scope=@cypress/angular
+      - store-npm-logs
+
+  npm-angular-signals:
+    <<: *defaults
+    steps:
+      - restore_cached_workspace
+      - run:
+          name: Build
+          command: yarn lerna run build --scope=@cypress/angular-signals
       - store-npm-logs
 
   npm-puppeteer-unit-tests:
@@ -2059,7 +2161,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/puppeteer
+          command: yarn lerna run build --scope=@cypress/puppeteer
       - run:
           name: Run tests
           command: yarn test
@@ -2091,7 +2193,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/react
+          command: yarn lerna run build --scope=@cypress/react
       - run:
           name: Run tests
           command: yarn test
@@ -2108,7 +2210,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/vite-plugin-cypress-esm
+          command: yarn lerna run build --scope=@cypress/vite-plugin-cypress-esm
       - run:
           name: Run tests
           command: yarn test
@@ -2125,7 +2227,7 @@ jobs:
       - restore_cached_workspace
       - run:
           name: Build
-          command: yarn lerna run build --scope @cypress/mount-utils
+          command: yarn lerna run build --scope=@cypress/mount-utils
       - store-npm-logs
 
   npm-grep:
@@ -2157,7 +2259,7 @@ jobs:
       - run:
           name: Build + Install
           command: |
-            yarn lerna run build --scope @cypress/schematic
+            yarn lerna run build --scope=@cypress/schematic
       - run:
           name: Run unit tests
           command: |
@@ -2184,6 +2286,16 @@ jobs:
     resource_class: << parameters.resource_class >>
     steps:
       - restore_cached_workspace
+      # this is a temporary work around while we wait for circle to resolve issues with packages
+      # with an @ character in windows during save_cache.
+      # @see https://github.com/cypress-io/cypress/issues/30343 for more details.
+      - when:
+          condition:
+            equal: [ *windows-executor, << parameters.executor >> ]
+          steps:
+            - run:
+                name: reinstall dependencies to work around cache issue (Windows only)
+                command: rm -rf node_modules && yarn
       - check-if-binary-exists
       - build-and-package-binary
       - build-cypress-npm-package:
@@ -2290,6 +2402,7 @@ jobs:
       - run:
           name: Run Kitchensink example project
           command: |
+            source ./scripts/ensure-node.sh
             CYPRESS_PROJECT_ID=$TEST_KITCHENSINK_PROJECT_ID \
             CYPRESS_RECORD_KEY=$TEST_KITCHENSINK_RECORD_KEY \
             CYPRESS_INTERNAL_ENV=staging \
@@ -2650,6 +2763,25 @@ linux-x64-workflow: &linux-x64-workflow
           - run-reporter-component-tests-chrome
           - run-webpack-dev-server-integration-tests
           - run-vite-dev-server-integration-tests
+    # Cypress run must be completed to fetch Accessibility report
+    - verify-accessibility-results:
+        context: test-runner:cypress-record-key
+        requires:
+          - reporter-integration-tests
+          - run-app-component-tests-chrome
+          - run-app-integration-tests-chrome
+          - run-frontend-shared-component-tests-chrome
+          - run-launchpad-component-tests-chrome
+          - run-launchpad-integration-tests-chrome
+          - run-reporter-component-tests-chrome
+          - run-webpack-dev-server-integration-tests
+          - run-vite-dev-server-integration-tests
+          - driver-integration-tests-firefox
+          - driver-integration-tests-chrome
+          - driver-integration-tests-chrome-beta
+          - driver-integration-tests-electron
+          - driver-integration-tests-webkit
+          - driver-integration-memory-tests
     - lint-types:
         requires:
           - build
@@ -2794,6 +2926,9 @@ linux-x64-workflow: &linux-x64-workflow
     - npm-angular:
         requires:
           - build
+    - npm-angular-signals:
+        requires:
+          - build
     - npm-mount-utils:
         requires:
           - build
@@ -2812,6 +2947,7 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - check-ts
           - npm-angular
+          - npm-angular-signals
           - npm-eslint-plugin-dev
           - npm-puppeteer-unit-tests
           - npm-puppeteer-cypress-tests
@@ -2848,6 +2984,7 @@ linux-x64-workflow: &linux-x64-workflow
           - test-binary-against-kitchensink
           - test-npm-module-on-minimum-node-version
           - binary-system-tests
+          - yarn-pnp-preprocessor-system-test
           - test-kitchensink
           - unit-tests
           - verify-release-readiness
@@ -2962,6 +3099,11 @@ linux-x64-workflow: &linux-x64-workflow
         requires:
           - get-published-artifacts
           - system-tests-node-modules-install
+    - yarn-pnp-preprocessor-system-test:
+        context: publish-binary
+        requires:
+          - get-published-artifacts
+          - system-tests-node-modules-install
 
 linux-x64-contributor-workflow: &linux-x64-contributor-workflow
   jobs:
@@ -2975,7 +3117,9 @@ linux-x64-contributor-workflow: &linux-x64-contributor-workflow
         type: approval
         requires:
           - build
-
+    # verify-accessibility-results is required for status checks, however, it will be skipped for contributors so it
+    # can run in any order
+    - verify-accessibility-results
     - check-ts:
         requires:
           - build
@@ -3141,6 +3285,9 @@ linux-x64-contributor-workflow: &linux-x64-contributor-workflow
     - npm-angular:
         requires:
           - build
+    - npm-angular-signals:
+        requires:
+          - build
     - npm-mount-utils:
         requires:
           - build
@@ -3158,6 +3305,7 @@ linux-x64-contributor-workflow: &linux-x64-contributor-workflow
         requires:
           - check-ts
           - npm-angular
+          - npm-angular-signals
           - npm-eslint-plugin-dev
           - npm-puppeteer-unit-tests
           - npm-puppeteer-cypress-tests

@@ -1,3 +1,17 @@
+# [@cypress/webpack-dev-server-v3.11.0](https://github.com/cypress-io/cypress/compare/@cypress/webpack-dev-server-v3.10.1...@cypress/webpack-dev-server-v3.11.0) (2024-08-27)
+
+
+### Features
+
+* implement JIT component experiment ([#30049](https://github.com/cypress-io/cypress/issues/30049)) ([57f6110](https://github.com/cypress-io/cypress/commit/57f6110d29f0b234c969abc747f0fae29c0f4ead))
+
+# [@cypress/webpack-dev-server-v3.10.1](https://github.com/cypress-io/cypress/compare/@cypress/webpack-dev-server-v3.10.0...@cypress/webpack-dev-server-v3.10.1) (2024-08-01)
+
+
+### Bug Fixes
+
+* **deps:** update dependency webpack-dev-server to ^4.15.2 ([#29936](https://github.com/cypress-io/cypress/issues/29936)) ([f2b41b0](https://github.com/cypress-io/cypress/commit/f2b41b0103f0f9f9d50ea1d07d45ee8f8a677f48))
+
 # [@cypress/webpack-dev-server-v3.10.0](https://github.com/cypress-io/cypress/compare/@cypress/webpack-dev-server-v3.9.0...@cypress/webpack-dev-server-v3.10.0) (2024-06-07)
 
 

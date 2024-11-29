@@ -170,6 +170,10 @@ const driverConfigOptions: Array<DriverConfigOption> = [
     },
     validation: isValidConfig,
   }, {
+    name: 'defaultBrowser',
+    defaultValue: null,
+    validation: validate.isString,
+  }, {
     name: 'defaultCommandTimeout',
     defaultValue: 4000,
     validation: validate.isNumber,
@@ -234,6 +238,12 @@ const driverConfigOptions: Array<DriverConfigOption> = [
     name: 'experimentalSkipDomainInjection',
     defaultValue: null,
     validation: validate.isNullOrArrayOfStrings,
+    isExperimental: true,
+    requireRestartOnChange: 'server',
+  }, {
+    name: 'experimentalJustInTimeCompile',
+    defaultValue: false,
+    validation: validate.isBoolean,
     isExperimental: true,
     requireRestartOnChange: 'server',
   }, {
@@ -734,6 +744,12 @@ export const breakingRootOptions: Array<BreakingOption> = [
     isWarning: false,
     testingTypes: ['e2e'],
   },
+  {
+    name: 'experimentalJustInTimeCompile',
+    errorKey: 'EXPERIMENTAL_JIT_COMPONENT_TESTING',
+    isWarning: false,
+    testingTypes: ['component'],
+  },
 ]
 
 export const testingTypeBreakingOptions: { e2e: Array<BreakingOption>, component: Array<BreakingOption> } = {
@@ -746,6 +762,11 @@ export const testingTypeBreakingOptions: { e2e: Array<BreakingOption>, component
     {
       name: 'indexHtmlFile',
       errorKey: 'CONFIG_FILE_INVALID_TESTING_TYPE_CONFIG_E2E',
+      isWarning: false,
+    },
+    {
+      name: 'experimentalJustInTimeCompile',
+      errorKey: 'EXPERIMENTAL_JIT_COMPONENT_TESTING',
       isWarning: false,
     },
   ],

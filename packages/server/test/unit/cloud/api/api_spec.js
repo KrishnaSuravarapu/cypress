@@ -591,6 +591,14 @@ describe('lib/cloud/api', () => {
         get protocolManager () {
           return protocolManager
         },
+        getConfig: () => {
+          return {
+            port: 1234,
+            devServerPublicPathRoute: '/dev-server',
+            proxyUrl: 'http://localhost:1234',
+            namespace: '__cypress',
+          }
+        },
       }
 
       return api.createRun({
@@ -607,7 +615,23 @@ describe('lib/cloud/api', () => {
 
         expect(this.protocolManager.setupProtocol).to.be.calledWith(
           PROTOCOL_STUB_VALID.value,
-          { runId: 'new-run-id-123', testingType: 'e2e', mountVersion: 2 },
+          {
+            runId: 'new-run-id-123',
+            testingType: 'e2e',
+            mountVersion: 2,
+            projectId: 'id-123',
+            cloudApi: {
+              url: 'http://localhost:1234/',
+              retryWithBackoff: api.retryWithBackoff,
+              requestPromise: api.rp,
+            },
+            projectConfig: {
+              port: 1234,
+              devServerPublicPathRoute: '/dev-server',
+              proxyUrl: 'http://localhost:1234',
+              namespace: '__cypress',
+            },
+          },
         )
       })
     })
@@ -656,6 +680,14 @@ describe('lib/cloud/api', () => {
         get protocolManager () {
           return protocolManager
         },
+        getConfig: () => {
+          return {
+            port: 1234,
+            devServerPublicPathRoute: '/dev-server',
+            proxyUrl: 'http://localhost:1234',
+            namespace: '__cypress',
+          }
+        },
       }
 
       return api.createRun({
@@ -672,7 +704,23 @@ describe('lib/cloud/api', () => {
 
         expect(this.protocolManager.setupProtocol).to.be.calledWith(
           PROTOCOL_STUB_VALID.value,
-          { runId: 'new-run-id-123', testingType: 'e2e', mountVersion: 2 },
+          {
+            runId: 'new-run-id-123',
+            testingType: 'e2e',
+            mountVersion: 2,
+            projectId: 'id-123',
+            cloudApi: {
+              url: 'http://localhost:1234/',
+              retryWithBackoff: api.retryWithBackoff,
+              requestPromise: api.rp,
+            },
+            projectConfig: {
+              port: 1234,
+              devServerPublicPathRoute: '/dev-server',
+              proxyUrl: 'http://localhost:1234',
+              namespace: '__cypress',
+            },
+          },
         )
       })
     })

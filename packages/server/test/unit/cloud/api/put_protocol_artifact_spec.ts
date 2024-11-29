@@ -7,8 +7,11 @@ import chaiAsPromised from 'chai-as-promised'
 
 import { ReadStream } from 'fs'
 import { StreamActivityMonitor } from '../../../../lib/cloud/upload/stream_activity_monitor'
-import { uploadStream } from '../../../../lib/cloud/upload/upload_stream'
-import { HttpError } from '../../../../lib/cloud/api/http_error'
+import { HttpError } from '../../../../lib/cloud/network/http_error'
+import { putFetch, ParseKinds } from '../../../../lib/cloud/network/put_fetch'
+import { linearDelay, asyncRetry } from '../../../../lib/util/async_retry'
+import { isRetryableError } from '../../../../lib/cloud/network/is_retryable_error'
+import type { putProtocolArtifact } from '../../../../lib/cloud/api/put_protocol_artifact'
 
 chai.use(chaiAsPromised).use(sinonChai)
 
@@ -16,15 +19,17 @@ describe('putProtocolArtifact', () => {
   let filePath: string
   let maxFileSize: number
   let fileSize: number
-  let mockStreamMonitor
+  let uploadMonitorSamplingRate: number
+  let mockStreamMonitor: sinon.SinonStubbedInstance<StreamActivityMonitor>
   let mockReadStream
   let destinationUrl
-
   let statStub: sinon.SinonStub
-  let uploadStreamStub: sinon.SinonStub<Parameters<typeof uploadStream>, ReturnType<typeof uploadStream>>
-  let geometricRetryStub: sinon.SinonStub
-
-  let putProtocolArtifact: (artifactPath: string, maxFileSize: number, destinationUrl: string) => Promise<void>
+  let asyncRetryStub: sinon.SinonStub<Parameters<typeof asyncRetry>, ReturnType<typeof asyncRetry>>
+  let putFetchStub: sinon.SinonStub<Parameters<typeof putFetch>, ReturnType<typeof putFetch>>
+  let putArtifact: typeof putProtocolArtifact
+  let streamMonitorImport: {
+    StreamActivityMonitor: sinon.SinonStub<[maxActivityDwellTime: number], StreamActivityMonitor>
+  }
 
   /**
    * global.mockery is defined the first time `test/spec_helper.js` is required by any spec.
@@ -63,28 +68,45 @@ describe('putProtocolArtifact', () => {
     filePath = '/some/file/path'
     fileSize = 20
     destinationUrl = 'https://some/destination/url'
+    uploadMonitorSamplingRate = 10000
 
     mockReadStream = sinon.createStubInstance(ReadStream)
     mockery.registerMock('fs', {
       createReadStream: sinon.stub().returns(mockReadStream),
     })
 
-    geometricRetryStub = sinon.stub()
+    putFetchStub = sinon.stub()
 
-    uploadStreamStub = sinon.stub<Parameters<typeof uploadStream>, ReturnType<typeof uploadStream>>()
-
-    // these paths need to be what `put_protocol_artifact` used to import them
-    mockery.registerMock('../upload/upload_stream', {
-      geometricRetry: geometricRetryStub,
-      uploadStream: uploadStreamStub,
+    mockery.registerMock('../network/put_fetch', {
+      putFetch: putFetchStub,
+      ParseKinds,
     })
 
-    mockStreamMonitor = sinon.createStubInstance(StreamActivityMonitor)
-    mockery.registerMock('../upload/stream_activity_monitor', {
-      StreamActivityMonitor: sinon.stub().callsFake(() => {
+    asyncRetryStub = sinon.stub()
+
+    // asyncRetry is already unit tested, no need to test retry behavior: identity stub
+    asyncRetryStub.callsFake((fn) => fn)
+
+    mockery.registerMock('../../util/async_retry', {
+      asyncRetry: asyncRetryStub,
+      linearDelay,
+    })
+
+    const mockAbortController = sinon.createStubInstance(AbortController)
+    const mockSignal = sinon.createStubInstance(AbortSignal)
+
+    sinon.stub(mockAbortController, 'signal').get(() => mockSignal)
+
+    streamMonitorImport = {
+      StreamActivityMonitor: sinon.stub<[maxActivityDwellTime: number], StreamActivityMonitor>().callsFake(() => {
         return mockStreamMonitor
       }),
-    })
+    }
+
+    mockStreamMonitor = sinon.createStubInstance(StreamActivityMonitor)
+    mockStreamMonitor.getController.returns(mockAbortController)
+
+    mockery.registerMock('../upload/stream_activity_monitor', streamMonitorImport)
 
     statStub = sinon.stub()
 
@@ -92,12 +114,23 @@ describe('putProtocolArtifact', () => {
       stat: statStub,
     })
 
-    putProtocolArtifact = require('../../../../lib/cloud/api/put_protocol_artifact').putProtocolArtifact
+    const req = require('../../../../lib/cloud/api/put_protocol_artifact')
+
+    putArtifact = req.putProtocolArtifact
   })
 
   afterEach(() => {
     mockery.deregisterAll()
     mockery.disable()
+  })
+
+  it('is wrapped with an asyncRetry', () => {
+    const options = asyncRetryStub.firstCall.args[1]
+
+    expect(options.maxAttempts).to.eq(3)
+    expect(options.retryDelay).to.be.a('function')
+    // because of mockery, the isRetryableError ref here is different than the one imported into put_protocol_artifact_spec
+    expect(options.shouldRetry?.toString()).to.eq(isRetryableError.toString())
   })
 
   describe('when provided an artifact path that does not exist', () => {
@@ -125,7 +158,7 @@ describe('putProtocolArtifact', () => {
     })
 
     it('rejects with a file does not exist error', () => {
-      return expect(putProtocolArtifact(invalidPath, maxFileSize, destinationUrl)).to.be.rejectedWith(`ENOENT: no such file or directory, stat '/some/invalid/path'`)
+      return expect(putArtifact(invalidPath, maxFileSize, destinationUrl, uploadMonitorSamplingRate)).to.be.rejectedWith(`ENOENT: no such file or directory, stat '/some/invalid/path'`)
     })
   })
 
@@ -140,50 +173,47 @@ describe('putProtocolArtifact', () => {
       })
 
       it('rejects with a file too large error', () => {
-        return expect(putProtocolArtifact(filePath, maxFileSize, destinationUrl))
+        return expect(putArtifact(filePath, maxFileSize, destinationUrl, uploadMonitorSamplingRate))
         .to.be.rejectedWith('Spec recording too large: artifact is 20 bytes, limit is 19 bytes')
       })
     })
 
     describe('and fetch completes successfully', () => {
-      it('resolves', () => {
-        uploadStreamStub.withArgs(
-          mockReadStream,
-          destinationUrl,
-          fileSize, {
-            retryDelay: geometricRetryStub,
-            activityMonitor: mockStreamMonitor,
-          },
-        ).resolves()
+      beforeEach(() => {
+        putFetchStub.resolves()
+      })
 
-        return expect(putProtocolArtifact(filePath, maxFileSize, destinationUrl)).to.be.fulfilled
+      it('creates the stream activity monitor with the provided sampling interval and resolves', async () => {
+        await expect(putArtifact(filePath, maxFileSize, destinationUrl, uploadMonitorSamplingRate)).to.be.fulfilled
+
+        expect(streamMonitorImport.StreamActivityMonitor).to.have.been.calledWith(uploadMonitorSamplingRate)
       })
     })
 
-    describe('and uploadStream rejects', () => {
+    describe('and putFetch rejects', () => {
       let httpErr: HttpError
       let res: Response
 
       beforeEach(() => {
         res = sinon.createStubInstance(Response)
 
-        httpErr = new HttpError(`403 Forbidden (${destinationUrl})`, res)
-
-        uploadStreamStub.withArgs(
-          mockReadStream,
+        httpErr = new HttpError(
+          `403 Forbidden (${destinationUrl})`,
           destinationUrl,
-          fileSize, {
-            retryDelay: geometricRetryStub,
-            activityMonitor: mockStreamMonitor,
-          },
-        ).rejects(httpErr)
+          403,
+          'Forbidden',
+          'Response Body',
+          res,
+        )
+
+        putFetchStub.rejects(httpErr)
       })
 
       it('rethrows', async () => {
         let error: Error | undefined
 
         try {
-          await putProtocolArtifact(filePath, maxFileSize, destinationUrl)
+          await putArtifact(filePath, maxFileSize, destinationUrl)
         } catch (e) {
           error = e
         }

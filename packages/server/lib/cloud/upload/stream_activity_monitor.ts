@@ -1,35 +1,21 @@
 import Debug from 'debug'
 import { Transform, Readable } from 'stream'
-
+import { StreamStalledError } from './stream_stalled_error'
 const debug = Debug('cypress:server:cloud:stream-activity-monitor')
 const debugVerbose = Debug('cypress-verbose:server:cloud:stream-activity-monitor')
 
-export class StreamStartTimedOutError extends Error {
-  constructor (maxStartDwellTime: number) {
-    super(`Source stream failed to begin sending data after ${maxStartDwellTime}ms`)
-  }
-}
-
-export class StreamStalledError extends Error {
-  constructor (maxActivityDwellTime: number) {
-    super(`Stream stalled: no activity detected in the previous ${maxActivityDwellTime}ms`)
-  }
-}
-
 /**
- * `StreamActivityMonitor` encapsulates state with regard to monitoring a stream
- * for flow failure states. Given a maxStartDwellTime and a maxActivityDwellTime, this class
- * can `monitor` a Node Readable stream and signal if the sink (e.g., a `fetch`) should be
- * aborted via an AbortController that can be retried via `getController`. It does this
- * by creating an identity Transform stream and piping the source stream through it. The
- * transform stream receives each chunk that the source emits, and orchestrates some timeouts
- * to determine if the stream has failed to start, or if the data flow has stalled.
+ * `StreamActivityMonitor` encapsulates state with regard to monitoring a stream for flow
+ * failure states. Given a maxActivityDwellTime, this class can `monitor` a Node Readable
+ * stream and signal if the sink (e.g., a `fetch`) should be aborted via an AbortController
+ * that can be retried via `getController`. It does this by creating an identity Transform
+ * stream and piping the source stream through it. The transform stream receives each chunk
+ * that the source emits, and orchestrates some timeouts to determine if the stream has stalled.
  *
  * Example usage:
  *
- * const MAX_START_DWELL_TIME = 5000
  * const MAX_ACTIVITY_DWELL_TIME = 5000
- * const stallDetection = new StreamActivityMonitor(MAX_START_DWELL_TIME, MAX_ACTIVITY_DWELL_TIME)
+ * const stallDetection = new StreamActivityMonitor(MAX_ACTIVITY_DWELL_TIME)
  * try {
  *   const source = fs.createReadStream('/some/source/file')
  *   await fetch('/destination/url', {
@@ -44,13 +30,15 @@ export class StreamStalledError extends Error {
  * }
  *
  */
+
+const DEFAULT_FS_READSTREAM_CHUNK_SIZE = 64 * 1024 // Kilobytes
+
 export class StreamActivityMonitor {
   private streamMonitor: Transform | undefined
-  private startTimeout: NodeJS.Timeout | undefined
   private activityTimeout: NodeJS.Timeout | undefined
   private controller: AbortController
 
-  constructor (private maxStartDwellTime: number, private maxActivityDwellTime: number) {
+  constructor (private maxActivityDwellTime: number) {
     this.controller = new AbortController()
   }
 
@@ -60,7 +48,7 @@ export class StreamActivityMonitor {
 
   public monitor (stream: Readable): Readable {
     debug('monitoring stream')
-    if (this.streamMonitor || this.startTimeout || this.activityTimeout) {
+    if (this.streamMonitor || this.activityTimeout) {
       this.reset()
     }
 
@@ -68,26 +56,19 @@ export class StreamActivityMonitor {
       transform: (chunk, _, callback) => {
         debugVerbose('Received chunk from File ReadableStream; Enqueing to network: ', chunk.length)
 
-        clearTimeout(this.startTimeout)
         this.markActivityInterval()
         callback(null, chunk)
       },
     })
-
-    this.startTimeout = setTimeout(() => {
-      this.controller?.abort(new StreamStartTimedOutError(this.maxStartDwellTime))
-    }, this.maxStartDwellTime)
 
     return stream.pipe(this.streamMonitor)
   }
 
   private reset () {
     debug('Resetting Stream Activity Monitor')
-    clearTimeout(this.startTimeout)
     clearTimeout(this.activityTimeout)
 
     this.streamMonitor = undefined
-    this.startTimeout = undefined
     this.activityTimeout = undefined
 
     this.controller = new AbortController()
@@ -97,7 +78,7 @@ export class StreamActivityMonitor {
     debug('marking activity interval')
     clearTimeout(this.activityTimeout)
     this.activityTimeout = setTimeout(() => {
-      this.controller?.abort(new StreamStalledError(this.maxActivityDwellTime))
+      this.controller?.abort(new StreamStalledError(this.maxActivityDwellTime, DEFAULT_FS_READSTREAM_CHUNK_SIZE))
     }, this.maxActivityDwellTime)
   }
 }

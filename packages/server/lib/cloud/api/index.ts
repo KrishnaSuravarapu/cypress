@@ -426,12 +426,18 @@ export default {
       }
 
       if (script) {
-        const { testingType } = options
-        const { runId } = result
+        const config = options.project.getConfig()
 
         await options.project.protocolManager.setupProtocol(script, {
-          runId,
-          testingType,
+          runId: result.runId,
+          projectId: options.projectId,
+          testingType: options.testingType,
+          cloudApi: {
+            url: apiUrl,
+            retryWithBackoff: this.retryWithBackoff,
+            requestPromise: this.rp,
+          },
+          projectConfig: _.pick(config, ['devServerPublicPathRoute', 'port', 'proxyUrl', 'namespace']),
           mountVersion: runnerCapabilities.protocolMountVersion,
         })
       }

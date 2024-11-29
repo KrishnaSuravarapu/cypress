@@ -146,6 +146,9 @@ export const AllCypressErrors = {
   TESTS_DID_NOT_START_RETRYING: (arg1: string) => {
     return errTemplate`Timed out waiting for the browser to connect. ${fmt.off(arg1)}`
   },
+  FIREFOX_CDP_FAILED_TO_CONNECT: (arg1: string) => {
+    return errTemplate`Failed to spawn CDP with Firefox. ${fmt.off(arg1)}`
+  },
   TESTS_DID_NOT_START_FAILED: () => {
     return errTemplate`The browser never connected. Something is wrong. The tests cannot run. Aborting...`
   },
@@ -574,7 +577,18 @@ export const AllCypressErrors = {
         This error will not affect or change the exit code.
     `
   },
-  CLOUD_PROTOCOL_UPLOAD_HTTP_FAILURE: (error: Error & { url: string, status: number, statusText: string }) => {
+  CLOUD_PROTOCOL_UPLOAD_UNKNOWN_ERROR: (error: Error) => {
+    return errTemplate`\
+        Warning: We encountered an error while uploading the Test Replay recording of this spec.
+
+        These results will not display Test Replay recordings.
+
+        This error will not affect or change the exit code.
+
+        ${fmt.highlightSecondary(error)}
+    `
+  },
+  CLOUD_PROTOCOL_UPLOAD_HTTP_FAILURE: (error: Error & { url: string, status: number, statusText: string, responseBody: string }) => {
     return errTemplate`\
         Warning: We encountered an HTTP error while uploading the Test Replay recording for this spec.
 
@@ -582,9 +596,11 @@ export const AllCypressErrors = {
 
         This error will not affect or change the exit code.
 
-        ${fmt.url(error.url)} responded with HTTP ${fmt.stringify(error.status)}: ${fmt.highlightSecondary(error.statusText)}`
+        ${fmt.url(error.url)} responded with HTTP ${fmt.stringify(error.status)}: ${fmt.highlightSecondary(error.statusText)}
+        
+        ${fmt.highlightTertiary(error.responseBody)}`
   },
-  CLOUD_PROTOCOL_UPLOAD_NEWORK_FAILURE: (error: Error & { url: string }) => {
+  CLOUD_PROTOCOL_UPLOAD_NETWORK_FAILURE: (error: Error & { url: string }) => {
     return errTemplate`\
         Warning: We encountered a network error while uploading the Test Replay recording for this spec.
         
@@ -596,21 +612,42 @@ export const AllCypressErrors = {
 
         ${fmt.highlightSecondary(error)}`
   },
+  CLOUD_PROTOCOL_UPLOAD_STREAM_STALL_FAILURE: (error: Error & { chunkSizeKB: number, maxActivityDwellTime: number }) => {
+    const kbpsThreshold = (error.chunkSizeKB * 8) / (error.maxActivityDwellTime / 1000)
+
+    return errTemplate`\
+        Warning: We encountered slow network conditions while uploading the Test Replay recording for this spec.
+
+        The upload transfer rate fell below ${fmt.highlightSecondary(`${kbpsThreshold}kbps`)} over a sampling period of ${fmt.highlightSecondary(`${error.maxActivityDwellTime}ms`)}.
+
+        To prevent long CI execution durations, this Test Replay recording will not be uploaded.
+
+        The results for this spec will not display Test Replay recordings.
+
+        If this error occurs often, the sampling period may be configured by setting the ${fmt.highlightSecondary('CYPRESS_TEST_REPLAY_UPLOAD_SAMPLING_INTERVAL')} environment variable to a higher value than ${fmt.stringify(error.maxActivityDwellTime)}.
+    `
+  },
   CLOUD_PROTOCOL_UPLOAD_AGGREGATE_ERROR: (error: {
-    errors: (Error & { kind?: 'NetworkError' | 'HttpError', url: string })[]
+    errors: (Error & { kind?: 'SystemError', url: string } | Error & { kind: 'HttpError', url: string, status?: string, statusText?: string, responseBody?: string })[]
   }) => {
     if (error.errors.length === 1) {
-      if (error.errors[0]?.kind === 'NetworkError') {
-        return AllCypressErrors.CLOUD_PROTOCOL_UPLOAD_NEWORK_FAILURE(error.errors[0])
+      const firstError = error.errors[0]
+
+      if (firstError?.kind === 'SystemError') {
+        return AllCypressErrors.CLOUD_PROTOCOL_UPLOAD_NETWORK_FAILURE(firstError as Error & { url: string })
       }
 
-      return AllCypressErrors.CLOUD_PROTOCOL_UPLOAD_HTTP_FAILURE(error.errors[0] as Error & { url: string, status: number, statusText: string})
+      return AllCypressErrors.CLOUD_PROTOCOL_UPLOAD_HTTP_FAILURE(error.errors[0] as Error & { url: string, status: number, statusText: string, responseBody: string})
     }
 
-    let networkErr = error.errors.find((err) => {
-      return err.kind === 'NetworkError'
+    let systemErr = error.errors.find((err) => {
+      return err.kind === 'SystemError'
     })
-    const recommendation = networkErr ? errPartial`Some or all of the errors encountered are system-level network errors. Please verify your network configuration for connecting to ${fmt.highlightSecondary(networkErr.url)}` : null
+    const recommendation = systemErr ? errPartial`Some or all of the errors encountered are system-level network errors. Please verify your network configuration for connecting to ${fmt.highlightSecondary(systemErr.url)}` : null
+
+    const fmtUploadError = ({ message, responseBody }: { message: string, responseBody?: string }) => {
+      return `${message}${responseBody ? `:\n${responseBody}\n` : ''}`
+    }
 
     return errTemplate`\
         Warning: We encountered multiple errors while uploading the Test Replay recording for this spec.
@@ -619,7 +656,7 @@ export const AllCypressErrors = {
 
         ${recommendation}
 
-        ${fmt.listItems(error.errors.map((error) => error.message))}`
+        ${fmt.listItems(error.errors.map(fmtUploadError), { prefix: '' })}`
   },
   CLOUD_CANNOT_CREATE_RUN_OR_INSTANCE: (apiErr: Error) => {
     return errTemplate`\
@@ -1184,11 +1221,11 @@ export const AllCypressErrors = {
 
         The error was: ${fmt.highlightSecondary(errMsg)}`
   },
-  FIREFOX_MARIONETTE_FAILURE: (origin: string, err: Error) => {
+  FIREFOX_GECKODRIVER_FAILURE: (origin: string, err: Error) => {
     return errTemplate`\
         Cypress could not connect to Firefox.
 
-        An unexpected error was received from Marionette: ${fmt.highlightSecondary(origin)}
+        An unexpected error was received from GeckoDriver: ${fmt.highlightSecondary(origin)}
 
         To avoid this error, ensure that there are no other instances of Firefox launched by Cypress running.
 
@@ -1310,6 +1347,12 @@ export const AllCypressErrors = {
         The ${fmt.highlight(`experimentalOriginDependencies`)} experiment is currently only supported for End to End Testing and must be configured as an e2e testing type property: ${fmt.highlightSecondary(`e2e.experimentalOriginDependencies`)}.
 
         ${fmt.code(code)}`
+  },
+  EXPERIMENTAL_JIT_COMPONENT_TESTING: () => {
+    return errTemplate`\
+    The ${fmt.highlight(`experimentalJustInTimeCompile`)} experiment is currently only supported for Component Testing.
+
+    If you have feedback about the experiment, please join the discussion here: http://on.cypress.io/just-in-time-compile`
   },
   EXPERIMENTAL_USE_DEFAULT_DOCUMENT_DOMAIN_E2E_ONLY: () => {
     const code = errPartial`

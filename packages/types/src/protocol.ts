@@ -3,6 +3,7 @@ import type ProtocolMapping from 'devtools-protocol/types/protocol-mapping'
 import type { IncomingHttpHeaders } from 'http'
 import type { Readable } from 'stream'
 import type { ProxyTimings } from './proxy'
+import type { SpecWithRelativeRoot } from './spec'
 
 type Commands = ProtocolMapping.Commands
 type Command<T extends keyof Commands> = Commands[T]
@@ -38,7 +39,8 @@ export interface AppCaptureProtocolCommon {
 
 export interface AppCaptureProtocolInterface extends AppCaptureProtocolCommon {
   getDbMetadata (): { offset: number, size: number } | undefined
-  beforeSpec ({ workingDirectory, archivePath, dbPath, db }: { workingDirectory: string, archivePath: string, dbPath: string, db: Database }): void
+  beforeSpec ({ spec, workingDirectory, archivePath, dbPath, db }: { spec: SpecWithRelativeRoot & { instanceId: string }, workingDirectory: string, archivePath: string, dbPath: string, db: Database }): void
+  uploadStallSamplingInterval: () => number
 }
 
 export type ProtocolCaptureMethod = keyof AppCaptureProtocolInterface | 'setupProtocol' | 'uploadCaptureArtifact' | 'getCaptureProtocolScript' | 'cdpClient.on' | 'getZippedDb' | 'UNKNOWN' | 'createProtocolArtifact' | 'protocolUploadUrl'
@@ -83,9 +85,25 @@ export type CaptureArtifact = {
   filePath: string
 }
 
+type ProjectConfig = {
+  devServerPublicPathRoute: string
+  namespace: string
+  port: number
+  proxyUrl: string
+}
+
 export type ProtocolManagerOptions = {
   runId: string
   testingType: 'e2e' | 'component'
+  projectId: string
+  cloudApi: {
+    url: string
+    retryWithBackoff (fn: (attemptIndex: number) => Promise<any>): Promise<any>
+    requestPromise: {
+      get (options: any): Promise<any>
+    }
+  }
+  projectConfig: ProjectConfig
   mountVersion?: number
 }
 
@@ -108,7 +126,7 @@ export interface ProtocolManagerShape extends AppCaptureProtocolCommon {
   protocolEnabled: boolean
   networkEnableOptions?: { maxTotalBufferSize: number, maxResourceBufferSize: number, maxPostDataSize: number }
   setupProtocol(script: string, options: ProtocolManagerOptions): Promise<void>
-  beforeSpec (spec: { instanceId: string }): void
+  beforeSpec (spec: SpecWithRelativeRoot & { instanceId: string }): void
   afterSpec (): Promise<{ durations: AfterSpecDurations } | undefined>
   reportNonFatalErrors (clientMetadata: any): Promise<void>
   uploadCaptureArtifact(artifact: CaptureArtifact): Promise<UploadCaptureArtifactResult | void>
