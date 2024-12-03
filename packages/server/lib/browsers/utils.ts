@@ -253,7 +253,8 @@ const getWebKitBrowserVersion = async () => {
 
 async function getWebKitBrowser () {
   try {
-    const modulePath = require.resolve('playwright-webkit', { paths: [process.cwd()] })
+    // const modulePath = require.resolve('playwright-webkit', { paths: [process.cwd()] })
+    const modulePath = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
     const mod = await import(modulePath) as typeof import('playwright-webkit')
     const version = await getWebKitBrowserVersion()
 
