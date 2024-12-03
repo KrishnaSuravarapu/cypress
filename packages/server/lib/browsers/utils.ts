@@ -236,7 +236,8 @@ const getWebKitBrowserVersion = async () => {
   try {
     // this seems to be the only way to accurately capture the WebKit version - it's not exported, and invoking the webkit binary with `--version` does not give the correct result
     // after launching the browser, this is available at browser.version(), but we don't have a browser instance til later
-    const pwCorePath = path.dirname(require.resolve('playwright-core', { paths: [process.cwd()] }))
+    const playwrightFolder = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
+    const pwCorePath = path.dirname(require.resolve('playwright-core', { paths: [playwrightFolder] }))
     const wkBrowserPath = path.join(pwCorePath, 'lib', 'server', 'webkit', 'wkBrowser.js')
     const wkBrowserContents = await fs.readFile(wkBrowserPath)
     const result = wkBrowserVersionRe.exec(wkBrowserContents)
@@ -253,8 +254,8 @@ const getWebKitBrowserVersion = async () => {
 
 async function getWebKitBrowser () {
   try {
-    // const modulePath = require.resolve('playwright-webkit', { paths: [process.cwd()] })
-    const modulePath = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
+    const playwrightFolder = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
+    const modulePath = require.resolve('playwright-webkit', { paths: [playwrightFolder] })
     const mod = await import(modulePath) as typeof import('playwright-webkit')
     const version = await getWebKitBrowserVersion()
 

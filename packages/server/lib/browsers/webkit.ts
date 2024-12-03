@@ -57,8 +57,8 @@ function removeBadExitListener () {
 
 export async function open (browser: Browser, url: string, options: BrowserLaunchOpts, automation: Automation): Promise<BrowserInstance> {
   // resolve pw from user's project path
-  // const pwModulePath = require.resolve('playwright-webkit', { paths: [process.cwd()] })
-  const pwModulePath = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
+  const playwrightFolder = process.env.PLAYWRIGHT_TEST_FOLDER_PATH || '/ms-playwright-agent'
+  const pwModulePath = require.resolve('playwright-webkit', { paths: [playwrightFolder] })
 
   let pw: typeof playwright
 
